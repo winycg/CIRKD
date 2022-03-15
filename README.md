@@ -27,15 +27,15 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 
 | Role | Network |Method | Val mIoU|test mIoU|Pretrained |train script |
 | -- | -- | -- |-- |-- |-- |-- |
-|  Teacher | DeepLabV3-ResNet101|-|78.07 |77.46 |[Google Drive](https://drive.google.com/file/d/1zUdhYPYCDCclWU3Wo7GbbTlM8ibQ_UC1/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/train_scripts/train_baseline/deeplabv3_res101.sh)|
-| Student| DeepLabV3-ResNet18|Baseline| 74.21 | 73.45|- |[sh](https://github.com/winycg/CIRKD/train_scripts/train_baseline/deeplabv3_res18.sh)|
-| Student| DeepLabV3-ResNet18|CIRKD| 76.38 |75.05|[Google Drive](https://drive.google.com/file/d/1ebP28XJWJNDbU9OmnfT7x2JJWHWaDFMi/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/train_scripts/train_kd/deeplabv3_res18.sh)|
-| Student| DeepLabV3-ResNet18*|Baseline|65.17 |65.47  |-|[sh](https://github.com/winycg/CIRKD/train_scripts/train_baseline/deeplabv3_res18_unpretrained.sh)|
-| Student| DeepLabV3-ResNet18*|CIRKD|68.18|68.22|[Google Drive](https://drive.google.com/file/d/19mXtHup8HE9gH1DIfb9A7AA5kjYJyOag/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/train_scripts/train_kd/deeplabv3_res18_unpretrained.sh)|
-| Student| DeepLabV3-MobileNetV2|Baseline|73.12|72.36|- |[sh](https://github.com/winycg/CIRKD/train_scripts/train_baseline/deeplabv3_mbv2.sh)|
-| Student| DeepLabV3-MobileNetV2|CIRKD|75.42|74.03|[Google Drive](https://drive.google.com/file/d/1iw8GXxj612C_nRtBdS72kgIZ5nYOU1Ys/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/train_scripts/train_kd/deeplabv3_mbv2.sh)|
-| Student| PSPNet-ResNet18|Baseline|72.55|72.29|- |[sh](https://github.com/winycg/CIRKD/train_scripts/train_baseline/deeplabv3_mbv2.sh)|
-| Student| PSPNet-ResNet18|CIRKD|74.73|74.05|[Google Drive](https://drive.google.com/file/d/1zfpWVfzOpeVG7_WjeQPGB0rDl_XQX8ZG/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/train_scripts/train_kd/pspnet_res18.sh)|
+|  Teacher | DeepLabV3-ResNet101|-|78.07 |77.46 |[Google Drive](https://drive.google.com/file/d/1zUdhYPYCDCclWU3Wo7GbbTlM8ibQ_UC1/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res101.sh)|
+| Student| DeepLabV3-ResNet18|Baseline| 74.21 | 73.45|- |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res18.sh)|
+| Student| DeepLabV3-ResNet18|CIRKD| 76.38 |75.05|[Google Drive](https://drive.google.com/file/d/1ebP28XJWJNDbU9OmnfT7x2JJWHWaDFMi/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/deeplabv3_res18.sh)|
+| Student| DeepLabV3-ResNet18*|Baseline|65.17 |65.47  |-|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res18_unpretrained.sh)|
+| Student| DeepLabV3-ResNet18*|CIRKD|68.18|68.22|[Google Drive](https://drive.google.com/file/d/19mXtHup8HE9gH1DIfb9A7AA5kjYJyOag/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/deeplabv3_res18_unpretrained.sh)|
+| Student| DeepLabV3-MobileNetV2|Baseline|73.12|72.36|- |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_mbv2.sh)|
+| Student| DeepLabV3-MobileNetV2|CIRKD|75.42|74.03|[Google Drive](https://drive.google.com/file/d/1iw8GXxj612C_nRtBdS72kgIZ5nYOU1Ys/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/deeplabv3_mbv2.sh)|
+| Student| PSPNet-ResNet18|Baseline|72.55|72.29|- |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_mbv2.sh)|
+| Student| PSPNet-ResNet18|CIRKD|74.73|74.05|[Google Drive](https://drive.google.com/file/d/1zfpWVfzOpeVG7_WjeQPGB0rDl_XQX8ZG/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/pspnet_res18.sh)|
 
 *denotes that we do not initialize the backbone with ImageNet pre-trained weights.
 
