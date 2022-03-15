@@ -54,12 +54,12 @@ python -m torch.distributed.launch --nproc_per_node=8 eval.py \
 
 ### Generate the resulting images on test set
 ```
-python -m torch.distributed.launch --nproc_per_node=8 test.py \
+python -m torch.distributed.launch --nproc_per_node=4 test.py \
     --model deeplabv3 \
     --backbone resnet101 \
     --data [your dataset path]/cityscapes/ \
     --save-dir [your directory path to store resulting images] \
-    --gpu-id 0,1,2,3,4,5,6,7 \
+    --gpu-id 0,1,2,3 \
     --save-pred \
     --pretrained [your checkpoint path]/deeplabv3_resnet101_citys_best_model.pth
 ```
