@@ -39,7 +39,7 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 
 *denotes that we do not initialize the backbone with ImageNet pre-trained weights.
 
-To save memory, your may uncomment the Line 96-101 in [loss.py](https://github.com/winycg/CIRKD/blob/main/losses/loss.py), which means we utilize pooling to aggregate local embeddings.
+To save memory, your may uncomment the Line 96-101 in [loss.py](https://github.com/winycg/CIRKD/blob/main/losses/loss.py), which means we utilize pooling to aggregate local embeddings so that the dimension of the similarity matrix could be reduced.
 
 ## Evaluate pre-trained models on Cityscapes val and test sets
 
