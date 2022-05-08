@@ -154,11 +154,7 @@ class Evaluator(object):
                         scaled_probs = 0.5 * (scaled_probs + torch.flip(flip_scaled_probs, dims=[3]))
                     full_probs += scaled_probs
                 full_probs /= len(scales)  
-            target = target.view(H_ * W_)
-            eval_index = target != args.ignore_label
-            
-            full_probs = full_probs.view(1, self.val_dataset.num_class, H_ * W_)[:,:,eval_index].unsqueeze(-1)
-            target = target[eval_index].unsqueeze(0).unsqueeze(-1)
+
             self.metric.update(full_probs, target)
             pixAcc, mIoU = self.metric.get()
             logger.info("Sample: {:d}, validation pixAcc: {:.3f}, mIoU: {:.3f}".format(

@@ -358,13 +358,7 @@ class Trainer(object):
             B, H, W = target.size()
             outputs[0] = F.interpolate(outputs[0], (H, W), mode='bilinear', align_corners=True)
 
-            target = target.view(H * W)
-            eval_index = target != args.ignore_label
-            
-            full_probs = outputs[0].view(1, self.metric.nclass, H * W)[:,:,eval_index].unsqueeze(-1)
-            target = target[eval_index].unsqueeze(0).unsqueeze(-1)
-
-            self.metric.update(full_probs, target)
+            self.metric.update(outputs[0], target)
             pixAcc, mIoU = self.metric.get()
             logger.info("Sample: {:d}, Validation pixAcc: {:.3f}, mIoU: {:.3f}".format(i + 1, pixAcc, mIoU))
         
