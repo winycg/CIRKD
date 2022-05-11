@@ -149,7 +149,7 @@ class StudentSegContrast(nn.Module):
 
         self._dequeue_and_enqueue(ori_t_fea.detach().clone(), ori_labels.detach().clone())
 
-        if idxs.sum() == 0: # just a trick to skip all ignore anchor embeddings
+        if idxs.sum() == 0: # just a trick to skip the case of having no semantic embeddings
             return 0. * (s_feats**2).mean(), 0. * (s_feats**2).mean()
             
         class_num, pixel_queue_size, feat_size = self.teacher_pixel_queue.shape
