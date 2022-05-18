@@ -1,6 +1,7 @@
 #  Cross-Image Relational Knowledge Distillation for Semantic Segmentation
 
-This repository contains the source code of CIRKD (Cross-Image Relational Knowledge Distillation for Semantic Segmentation).
+This repository contains the source code of CIRKD ([Cross-Image Relational Knowledge Distillation for Semantic Segmentation](https://arxiv.org/pdf/2204.06986.pdf)).
+
 
 
 ## Requirement
