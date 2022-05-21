@@ -65,6 +65,10 @@ python -m torch.distributed.launch --nproc_per_node=4 test.py \
     --pretrained [your checkpoint path]/deeplabv3_resnet101_citys_best_model.pth
 ```
 You can submit the resulting images to the [Cityscapes test server](https://www.cityscapes-dataset.com/submit/).
+
+
+The current codes have been reorganized and we have not tested them thoroughly. If you have any questions, please contact us without hesitation. 
+
 ## Citation
 
 ```
