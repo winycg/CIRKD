@@ -44,25 +44,25 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 
 ### Evaluate the pre-trained models on val set
 ```
-python -m torch.distributed.launch --nproc_per_node=8 eval.py \
-    --model deeplabv3 \
-    --backbone resnet101 \
-    --data [your dataset path]/cityscapes/ \
-    --save-dir [your directory path to store log files] \
-    --gpu-id 0,1,2,3,4,5,6,7 \
-    --pretrained [your checkpoint path]/deeplabv3_resnet101_citys_best_model.pth
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+  python -m torch.distributed.launch --nproc_per_node=8 eval.py \
+  --model deeplabv3 \
+  --backbone resnet101 \
+  --data [your dataset path]/cityscapes/ \
+  --save-dir [your directory path to store log files] \
+  --pretrained [your checkpoint path]/deeplabv3_resnet101_citys_best_model.pth
 ```
 
 ### Generate the resulting images on test set
 ```
-python -m torch.distributed.launch --nproc_per_node=4 test.py \
-    --model deeplabv3 \
-    --backbone resnet101 \
-    --data [your dataset path]/cityscapes/ \
-    --save-dir [your directory path to store resulting images] \
-    --gpu-id 0,1,2,3 \
-    --save-pred \
-    --pretrained [your checkpoint path]/deeplabv3_resnet101_citys_best_model.pth
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
+  python -m torch.distributed.launch --nproc_per_node=4 test.py \
+  --model deeplabv3 \
+  --backbone resnet101 \
+  --data [your dataset path]/cityscapes/ \
+  --save-dir [your directory path to store resulting images] \
+  --save-pred \
+  --pretrained [your checkpoint path]/deeplabv3_resnet101_citys_best_model.pth
 ```
 You can submit the resulting images to the [Cityscapes test server](https://www.cityscapes-dataset.com/submit/).
 
