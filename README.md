@@ -30,15 +30,29 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 | -- | -- | -- |-- |-- |-- |-- |
 |  Teacher | DeepLabV3-ResNet101|-|78.07 |77.46 |[Google Drive](https://drive.google.com/file/d/1zUdhYPYCDCclWU3Wo7GbbTlM8ibQ_UC1/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res101.sh)|
 | Student| DeepLabV3-ResNet18|Baseline| 74.21 | 73.45|- |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res18.sh)|
-| Student| DeepLabV3-ResNet18|CIRKD| 76.38 |75.05|[Google Drive](https://drive.google.com/file/d/1ebP28XJWJNDbU9OmnfT7x2JJWHWaDFMi/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/deeplabv3_res18.sh)|
-| Student| DeepLabV3-ResNet18*|Baseline|65.17 |65.47  |-|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res18_unpretrained.sh)|
-| Student| DeepLabV3-ResNet18*|CIRKD|68.18|68.22|[Google Drive](https://drive.google.com/file/d/19mXtHup8HE9gH1DIfb9A7AA5kjYJyOag/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/deeplabv3_res18_unpretrained.sh)|
+| Student| DeepLabV3-ResNet18|CIRKD| 76.38 |75.05|[Google Drive](https://drive.google.com/file/d/1ebP28XJWJNDbU9OmnfT7x2JJWHWaDFMi/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/deeplabv3_res18.sh)|
 | Student| DeepLabV3-MobileNetV2|Baseline|73.12|72.36|- |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_mbv2.sh)|
-| Student| DeepLabV3-MobileNetV2|CIRKD|75.42|74.03|[Google Drive](https://drive.google.com/file/d/1iw8GXxj612C_nRtBdS72kgIZ5nYOU1Ys/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/deeplabv3_mbv2.sh)|
+| Student| DeepLabV3-MobileNetV2|CIRKD|75.42|74.03|[Google Drive](https://drive.google.com/file/d/1iw8GXxj612C_nRtBdS72kgIZ5nYOU1Ys/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/deeplabv3_mbv2.sh)|
 | Student| PSPNet-ResNet18|Baseline|72.55|72.29|- |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_mbv2.sh)|
-| Student| PSPNet-ResNet18|CIRKD|74.73|74.05|[Google Drive](https://drive.google.com/file/d/1zfpWVfzOpeVG7_WjeQPGB0rDl_XQX8ZG/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/pspnet_res18.sh)|
+| Student| PSPNet-ResNet18|CIRKD|74.73|74.05|[Google Drive](https://drive.google.com/file/d/1zfpWVfzOpeVG7_WjeQPGB0rDl_XQX8ZG/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/pspnet_res18.sh)|
 
-*denotes that we do not initialize the backbone with ImageNet pre-trained weights.
+
+## Performance of Segmentation KD methods on Cityscapes
+
+| Method | Val mIoU |Val mIoU | train script |
+| -- | -- | -- |-- |
+|  Teacher | DeepLabV3-ResNet101| DeepLabV3-ResNet101 | |
+|  Baseline | 78.07 | 78.07 |  |
+|  Student | DeepLabV3-ResNet18| DeepLabV3-MobileNetV2 | |
+|  Baseline | 74.21 | 73.12 |  |
+|  FitNet [1] | TODO | TODO |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_fitnet.sh)|
+|  AT [2] | TODO | TODO |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_at.sh)|
+|  SKD [3]| 75.42 | 73.82 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_skd.sh)|
+|  IFVD [4]| 75.59 | 73.50 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_ifvd.sh)|
+|  CWD [5]| 75.55 | 74.66 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_cwd.sh) |
+|  CIRKD [6]| 76.38 | 75.42 |  |
+
+The references are shown in [references.md](https://github.com/winycg/CIRKD/tree/main/losses/references.md)
 
 ## Evaluate pre-trained models on Cityscapes val and test sets
 

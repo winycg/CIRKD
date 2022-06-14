@@ -3,41 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
-from torch.autograd import Variable
 
-__all__ = ['SegCrossEntropyLoss', 
-           'CriterionKD', 
-           'CriterionMiniBatchCrossImagePair']
-
-
-# TODO: optim function
-class SegCrossEntropyLoss(nn.Module):
-    def __init__(self, ignore_index=-1, **kwargs):
-        super(SegCrossEntropyLoss, self).__init__()
-        self.task_loss = nn.CrossEntropyLoss(ignore_index=ignore_index)
-
-    def forward(self, inputs, targets):
-        B, H, W = targets.size()
-        inputs = F.interpolate(inputs, (H, W), mode='bilinear', align_corners=True)
-        return self.task_loss(inputs, targets)
-
-        
-class CriterionKD(nn.Module):
-    '''
-    knowledge distillation loss
-    '''
-    def __init__(self, temperature=1):
-        super(CriterionKD, self).__init__()
-        self.temperature = temperature
-
-    def forward(self, pred, soft):
-        B, C, h, w = soft.size()
-        scale_pred = pred.permute(0,2,3,1).contiguous().view(-1,C)
-        scale_soft = soft.permute(0,2,3,1).contiguous().view(-1,C)
-        p_s = F.log_softmax(scale_pred / self.temperature, dim=1)
-        p_t = F.softmax(scale_soft / self.temperature, dim=1)
-        loss = F.kl_div(p_s, p_t, reduction='batchmean') * (self.temperature**2)
-        return loss
+__all__ = ['CriterionMiniBatchCrossImagePair']
 
 
 class GatherLayer(torch.autograd.Function):
