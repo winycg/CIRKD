@@ -45,7 +45,6 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 |  Baseline | 78.07 | 78.07 |  |
 |  Student | DeepLabV3-ResNet18| DeepLabV3-MobileNetV2 | |
 |  Baseline | 74.21 | 73.12 |  |
-|  FitNet [1] | TODO | TODO |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_fitnet.sh)|
 |  AT [2] | TODO | TODO |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_at.sh)|
 |  SKD [3]| 75.42 | 73.82 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_skd.sh)|
 |  IFVD [4]| 75.59 | 73.50 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_ifvd.sh)|
