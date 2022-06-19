@@ -8,3 +8,4 @@ from .cirkd_memory import *
 from .cirkd_mini_batch import *
 from .skd import *
 from .task import *
+from .dsd import *

@@ -49,7 +49,8 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 |  SKD [3]| 75.42 | 73.82 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_skd.sh)|
 |  IFVD [4]| 75.59 | 73.50 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_ifvd.sh)|
 |  CWD [5]| 75.55 | 74.66 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_cwd.sh) |
-|  CIRKD [6]| 76.38 | 75.42 |  |
+|  DSD [6]| 74.81 | 74.11 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_dsd.sh) |
+|  CIRKD [7]| 76.38 | 75.42 |  |
 
 The references are shown in [references.md](https://github.com/winycg/CIRKD/tree/main/losses/references.md)
 

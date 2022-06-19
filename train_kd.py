@@ -78,7 +78,8 @@ def parse_args():
     parser.add_argument("--lambda-ifv", type=float, default=0., help="lambda ifvd")
     parser.add_argument("--lambda-fitnet", type=float, default=0., help="lambda fitnet")
     parser.add_argument("--lambda-at", type=float, default=0., help="lambda attention transfer")
-    
+    parser.add_argument("--lambda-psd", type=float, default=0., help="lambda pixel similarity KD")
+    parser.add_argument("--lambda-csd", type=float, default=0., help="lambda category similarity KD")
                
 
     # cuda setting
@@ -214,6 +215,7 @@ class Trainer(object):
         self.criterion_cwd = CriterionCWD(norm_type='channel',divergence='kl', temperature=4.).to(self.device)
         self.criterion_fitnet = CriterionFitNet().to(self.device)
         self.criterion_at = CriterionAT().to(self.device)
+        self.criterion_dsd = CriterionDoubleSimKD().to(self.device)
 
     
         params_list = nn.ModuleList([])
@@ -293,6 +295,8 @@ class Trainer(object):
             ifv_loss = torch.tensor(0.).cuda()
             fitnet_loss = torch.tensor(0.).cuda()
             at_loss = torch.tensor(0.).cuda()
+            psd_loss = torch.tensor(0.).cuda()
+            csd_loss = torch.tensor(0.).cuda()
             
 
             adv_G_loss = self.args.lambda_adv*self.criterion_adv_for_G(self.D_model(s_outputs[0]))
@@ -314,10 +318,17 @@ class Trainer(object):
                 fitnet_loss = self.args.lambda_fitnet * self.criterion_fitnet(s_outputs[-1], t_outputs[-1])
             if self.args.lambda_at != 0:
                 at_loss = self.args.lambda_at * self.criterion_at(s_outputs[-1], t_outputs[-1])
+            if self.args.lambda_psd != 0. and self.args.lambda_csd != 0.:  
+                feat_s_list = [s_outputs[-2], s_outputs[-1], s_outputs[0]]
+                feat_t_list = [t_outputs[-2], t_outputs[-1], t_outputs[0]]
+                psd_loss, csd_loss = self.criterion_dsd(feat_s_list, feat_t_list)
+                psd_loss = self.args.lambda_psd * psd_loss
+                csd_loss = self.args.lambda_csd * csd_loss
 
             losses = task_loss + kd_loss + adv_G_loss + \
                         skd_loss + cwd_fea_loss + cwd_logit_loss +\
-                        ifv_loss + at_loss + fitnet_loss
+                        ifv_loss + at_loss + fitnet_loss +\
+                        psd_loss + csd_loss 
             D_losses = adv_D_loss
 
             lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
@@ -338,6 +349,8 @@ class Trainer(object):
             ifv_loss_reduced = self.reduce_mean_tensor(ifv_loss)
             at_loss_reduced = self.reduce_mean_tensor(at_loss)
             fitnet_loss_reduced = self.reduce_mean_tensor(fitnet_loss)
+            psd_loss_reduced = self.reduce_mean_tensor(psd_loss)
+            csd_loss_reduced = self.reduce_mean_tensor(csd_loss)
             
             
             D_losses_reduced = self.reduce_mean_tensor(D_losses)
@@ -350,6 +363,7 @@ class Trainer(object):
                     "|| Adv_G Loss: {:.4f} || Adv_D Loss: {:.4f}" \
                     "|| skd_loss: {:.4f} || cwd_fea_loss: {:.4f} || cwd_logit_loss: {:.4f} " \
                         "|| ifv_loss: {:.4f} || at_loss: {:.4f} || fitnet_loss: {:.4f} " \
+                        "|| psd_loss: {:.4f} || csd_loss: {:.4f} ||" \
                         "|| Cost Time: {} || Estimated Time: {}".format(
                         iteration, args.max_iterations, self.optimizer.param_groups[0]['lr'], 
                         task_loss_reduced.item(),
@@ -362,6 +376,8 @@ class Trainer(object):
                         ifv_loss_reduced.item(),
                         at_loss_reduced.item(),
                         fitnet_loss_reduced.item(),
+                        psd_loss_reduced.item(),
+                        csd_loss_reduced.item(),
                         str(datetime.timedelta(seconds=int(time.time() - start_time))), 
                         eta_string))
 

@@ -14,10 +14,6 @@ class CriterionFitNet(nn.Module):
         B, C, H, W = feat_S.size()
 
         feat_S = self.conv(feat_S)
-        '''
-        feat_S = F.normalize(feat_S, p=2, dim=1)
-        feat_T = F.normalize(feat_T, p=2, dim=1)
-        '''
 
         sim_err = ((feat_S - feat_T)**2)
         sim_dis = sim_err.mean()

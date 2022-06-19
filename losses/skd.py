@@ -5,17 +5,6 @@ import torch.nn.functional as F
 
 __all__ = ['CriterionStructuralKD']
 
-class Normalize(nn.Module):
-    """normalization layer"""
-    def __init__(self, power=2):
-        super(Normalize, self).__init__()
-        self.power = power
-
-    def forward(self, x):
-        norm = x.pow(self.power).sum(1, keepdim=True).pow(1. / self.power)
-        out = x.div(norm)
-        return out
-
 
 class CriterionStructuralKD(nn.Module):
     def __init__(self):
@@ -35,7 +24,6 @@ class CriterionStructuralKD(nn.Module):
         patch_w = 2 #int(0.5 * W)
         patch_h = 2 #int(0.5 * H)
         maxpool = nn.MaxPool2d(kernel_size=(patch_h, patch_w), stride=(patch_h, patch_w), padding=0, ceil_mode=True)
-        #maxpool = nn.MaxPool2d(kernel_size=(patch_h, patch_w), stride=(patch_h, patch_w), padding=0, ceil_mode=True)
         feat_S = maxpool(feat_S)
         feat_T= maxpool(feat_T)
 
