@@ -34,7 +34,7 @@ class ChannelNorm(nn.Module):
 
 
 class CriterionCWD(nn.Module):
-    def __init__(self,norm_type='none',divergence='mse',temperature=1.0):
+    def __init__(self, s_channels, t_channels, norm_type='none',divergence='mse',temperature=1.0):
         super(CriterionCWD, self).__init__()
         # define normalize function
         if norm_type == 'channel':
@@ -54,7 +54,7 @@ class CriterionCWD(nn.Module):
             self.criterion = nn.KLDivLoss(reduction='sum')
             self.temperature = temperature
         self.divergence = divergence
-        self.conv = nn.Conv2d(128, 256, kernel_size=1, bias=False)
+        self.conv = nn.Conv2d(s_channels, t_channels, kernel_size=1, bias=False)
 
     def forward(self,preds_S, preds_T):
         n,c,h,w = preds_S.shape

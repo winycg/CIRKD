@@ -205,15 +205,20 @@ class Trainer(object):
                 self.s_model.load_state_dict(torch.load(args.resume, map_location=lambda storage, loc: storage))
 
         # create criterion
-        
+        x = torch.randn(1,3,512,512).cuda()
+        t_y = self.t_model(x)
+        s_y = self.s_model(x)
+        t_channels = t_y[-1].size(1)
+        s_channels = s_y[-1].size(1)
+
         self.criterion = SegCrossEntropyLoss(ignore_index=args.ignore_label).to(self.device)
         self.criterion_kd = CriterionKD(temperature=args.kd_temperature).to(self.device)
         self.criterion_adv = CriterionAdv('hinge').to(self.device)
         self.criterion_adv_for_G = CriterionAdvForG('hinge').to(self.device)
         self.criterion_skd = CriterionStructuralKD().to(self.device)
         self.criterion_ifv = CriterionIFV(train_dataset.num_class).to(self.device)
-        self.criterion_cwd = CriterionCWD(norm_type='channel',divergence='kl', temperature=4.).to(self.device)
-        self.criterion_fitnet = CriterionFitNet().to(self.device)
+        self.criterion_cwd = CriterionCWD(s_channels, t_channels, norm_type='channel',divergence='kl', temperature=4.).to(self.device)
+        self.criterion_fitnet = CriterionFitNet(s_channels, t_channels).to(self.device)
         self.criterion_at = CriterionAT().to(self.device)
         self.criterion_dsd = CriterionDoubleSimKD().to(self.device)
 

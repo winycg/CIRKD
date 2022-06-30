@@ -6,9 +6,9 @@ import torch.nn.functional as F
 __all__ = ['CriterionFitNet']
 
 class CriterionFitNet(nn.Module):
-    def __init__(self):
+    def __init__(self, s_channels, t_channels):
         super(CriterionFitNet, self).__init__()
-        self.conv = nn.Conv2d(128, 256, kernel_size=1, bias=False)
+        self.conv = nn.Conv2d(s_channels, t_channels, kernel_size=1, bias=False)
 
     def forward(self, feat_S, feat_T):
         B, C, H, W = feat_S.size()
