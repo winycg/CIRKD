@@ -72,7 +72,6 @@ You can zip the resulting images and submit it to the [Cityscapes test server](h
 | Student| PSPNet-ResNet18|CIRKD|74.78 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/voc/pspnet_res18.sh)|
 
 ## Performance of Segmentation KD methods on CamVid
-## Performance of Segmentation KD methods on Pascal VOC
 | Role | Network |Method | Val mIoU|train script |
 | -- | -- | -- |-- |-- |
 |  Teacher | DeepLabV3-ResNet101|-|69.84 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/deeplabv3_res101.sh)|
