@@ -63,6 +63,10 @@ You can zip the resulting images and submit it to the [Cityscapes test server](h
 
 
 ## Performance of Segmentation KD methods on Pascal VOC
+
+The ready-made Pascal VOC dataset for segmentation is available at ([Baidu Drive](https://pan.baidu.com/s/1MX2ea7rNRqbDqOKQ8E6XpQ?pwd=d2fp )
+
+
 | Role | Network |Method | Val mIoU|train script |
 | -- | -- | -- |-- |-- |
 |  Teacher | DeepLabV3-ResNet101|-|77.67 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/deeplabv3_res101.sh)|
