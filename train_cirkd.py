@@ -23,7 +23,11 @@ from models.model_zoo import get_segmentation_model
 from utils.distributed import *
 from utils.logger import setup_logger
 from utils.score import SegmentationMetric
-from dataset.datasets import CSTrainValSet
+
+from dataset.cityscapes import CSTrainValSet
+from dataset.camvid import CamvidTrainSet, CamvidValSet
+from dataset.voc import VOCDataTrainSet, VOCDataValSet
+
 from utils.flops import cal_multi_adds, cal_param_size
 
 
@@ -138,13 +142,24 @@ class Trainer(object):
         self.device = torch.device(args.device)
         self.num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
 
-        train_dataset = CSTrainValSet(args.data, 
-                                      list_path='./dataset/list/cityscapes/train.lst', 
-                                      max_iters=args.max_iterations*args.batch_size, 
-                                      crop_size=args.crop_size, scale=True, mirror=True)
-        val_dataset = CSTrainValSet(args.data, 
-                                    list_path='./dataset/list/cityscapes/val.lst', 
-                                    crop_size=(1024, 2048), scale=False, mirror=False)
+        if args.dataset == 'citys':
+            train_dataset = CSTrainValSet(args.data, 
+                                            list_path='./dataset/list/cityscapes/train.lst', 
+                                            max_iters=args.max_iterations*args.batch_size, 
+                                            crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = CSTrainValSet(args.data, 
+                                        list_path='./dataset/list/cityscapes/val.lst', 
+                                        crop_size=(1024, 2048), scale=False, mirror=False)
+        elif args.dataset == 'voc':
+            train_dataset = VOCDataTrainSet(args.data, './dataset/list/voc/train_aug.txt', max_iters=args.max_iterations*args.batch_size, 
+                                          crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = VOCDataValSet(args.data, './dataset/list/voc/val.txt')
+        elif args.dataset == 'camvid':
+            train_dataset = CamvidTrainSet(args.data, './dataset/list/CamVid/camvid_train_list.txt', max_iters=args.max_iterations*args.batch_size,
+                            ignore_label=args.ignore_label, crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_val_list.txt')
+        else:
+            raise ValueError('dataset unfind')
     
         args.batch_size = args.batch_size // num_gpus
         train_sampler = make_data_sampler(train_dataset, shuffle=True, distributed=args.distributed)
@@ -164,7 +179,6 @@ class Trainer(object):
 
         # create network
         BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
-
         self.t_model = get_segmentation_model(model=args.teacher_model, 
                                             backbone=args.teacher_backbone,
                                             local_rank=args.local_rank,

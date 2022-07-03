@@ -26,7 +26,7 @@ from utils.distributed import *
 from utils.logger import setup_logger
 from utils.score import SegmentationMetric
 from utils.flops import cal_multi_adds, cal_param_size
-from dataset.datasets import CSTrainValSet
+from dataset.cityscapes import CSTrainValSet
 
 
 def parse_args():

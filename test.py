@@ -20,7 +20,7 @@ from models.model_zoo import get_segmentation_model
 from utils.score import SegmentationMetric
 from utils.logger import setup_logger
 from utils.distributed import synchronize, get_rank, make_data_sampler, make_batch_data_sampler
-from dataset.datasets import CSTestSet
+from dataset.cityscapes import CSTestSet
 
 
 def parse_args():

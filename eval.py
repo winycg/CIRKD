@@ -19,7 +19,9 @@ from utils.score import SegmentationMetric
 from utils.visualize import get_color_pallete
 from utils.logger import setup_logger
 from utils.distributed import synchronize, get_rank, make_data_sampler, make_batch_data_sampler
-from dataset.datasets import CSValSet
+from dataset.cityscapes import CSValSet
+from dataset.camvid import CamvidValSet
+from dataset.voc import VOCDataValSet
 from utils.flops import cal_multi_adds, cal_param_size
 
 
@@ -80,7 +82,12 @@ class Evaluator(object):
         self.device = torch.device(args.device)
 
         # dataset and dataloader
-        self.val_dataset = CSValSet(args.data, './dataset/list/cityscapes/val.lst', crop_size=(1024, 2048))
+        if args.dataset == 'citys':
+            self.val_dataset = CSValSet(args.data, './dataset/list/cityscapes/val.lst', crop_size=(1024, 2048))
+        elif args.dataset == 'voc':
+            self.val_dataset = VOCDataValSet(args.data, './dataset/list/voc/val.txt')
+        elif args.dataset == 'camvid':
+            self.val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_test_list.txt')
 
         val_sampler = make_data_sampler(self.val_dataset, False, args.distributed)
         val_batch_sampler = make_batch_data_sampler(val_sampler, images_per_batch=1)
