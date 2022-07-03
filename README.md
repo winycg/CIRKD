@@ -64,7 +64,7 @@ You can zip the resulting images and submit it to the [Cityscapes test server](h
 
 ## Performance of Segmentation KD methods on Pascal VOC
 
-The ready-made Pascal VOC dataset for segmentation is available at ([Baidu Drive](https://pan.baidu.com/s/1MX2ea7rNRqbDqOKQ8E6XpQ?pwd=d2fp )
+The Pascal VOC dataset for segmentation is available at [Baidu Drive](https://pan.baidu.com/s/1MX2ea7rNRqbDqOKQ8E6XpQ?pwd=d2fp )
 
 
 | Role | Network |Method | Val mIoU|train script |
@@ -76,6 +76,9 @@ The ready-made Pascal VOC dataset for segmentation is available at ([Baidu Drive
 | Student| PSPNet-ResNet18|CIRKD|74.78 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/voc/pspnet_res18.sh)|
 
 ## Performance of Segmentation KD methods on CamVid
+
+The CamVid dataset for segmentation is available at [Baidu Drive](https://pan.baidu.com/s/1Z0h4y1-4k0LP8OCGY_Xixw?pwd=bl12)
+
 | Role | Network |Method | Val mIoU|train script |
 | -- | -- | -- |-- |-- |
 |  Teacher | DeepLabV3-ResNet101|-|69.84 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/deeplabv3_res101.sh)|
