@@ -26,6 +26,8 @@ Backbones pretrained on ImageNet:
 
 All models are trained over 8 * NVIDIA GeForce RTX 3090
 
+If you want to use mixed precision training, please add `--fp16`, see fp16 demo [demo1](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/deeplabv3_res18_fp16.sh), [demo2](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_at_fp16.sh), [demo3](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/deeplabv3_res18_fp16.sh).
+
 | Role | Network |Method | Val mIoU|test mIoU|Pretrained |train script |
 | -- | -- | -- |-- |-- |-- |-- |
 |  Teacher | DeepLabV3-ResNet101|-|78.07 |77.46 |[Google Drive](https://drive.google.com/file/d/1zUdhYPYCDCclWU3Wo7GbbTlM8ibQ_UC1/view?usp=sharing) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/citys/deeplabv3_res101.sh)|
