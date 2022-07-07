@@ -67,25 +67,25 @@ You can zip the resulting images and submit it to the [Cityscapes test server](h
 The Pascal VOC dataset for segmentation is available at [Baidu Drive](https://pan.baidu.com/s/1MX2ea7rNRqbDqOKQ8E6XpQ?pwd=d2fp )
 
 
-| Role | Network |Method | Val mIoU|train script |
-| -- | -- | -- |-- |-- |
-|  Teacher | DeepLabV3-ResNet101|-|77.67 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/deeplabv3_res101.sh)|
-| Student| DeepLabV3-ResNet18|Baseline| 73.21 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/deeplabv3_res18.sh)|
-| Student| DeepLabV3-ResNet18|CIRKD| 74.50 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/voc/deeplabv3_res18.sh)|
-| Student| PSPNet-ResNet18|Baseline|73.33|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/pspnet_res18.sh)|
-| Student| PSPNet-ResNet18|CIRKD|74.78 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/voc/pspnet_res18.sh)|
+| Role | Network |Method | Val mIoU|train script |Pretrained |
+| -- | -- | -- |-- |-- |-- |
+|  Teacher | DeepLabV3-ResNet101|-|77.67 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/deeplabv3_res101.sh)|[Google Drive](https://drive.google.com/file/d/1rYTaVq_ooiAI4oFOcDP8K3SpSbjURGnX/view?usp=sharing) |
+| Student| DeepLabV3-ResNet18|Baseline| 73.21 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/deeplabv3_res18.sh)||
+| Student| DeepLabV3-ResNet18|CIRKD| 74.50 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/voc/deeplabv3_res18.sh)||
+| Student| PSPNet-ResNet18|Baseline|73.33|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/voc/pspnet_res18.sh)||
+| Student| PSPNet-ResNet18|CIRKD|74.78 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/voc/pspnet_res18.sh)||
 
 ## Performance of Segmentation KD methods on CamVid
 
 The CamVid dataset for segmentation is available at [Baidu Drive](https://pan.baidu.com/s/1Z0h4y1-4k0LP8OCGY_Xixw?pwd=bl12)
 
-| Role | Network |Method | Val mIoU|train script |
-| -- | -- | -- |-- |-- |
-|  Teacher | DeepLabV3-ResNet101|-|69.84 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/deeplabv3_res101.sh)|
-| Student| DeepLabV3-ResNet18|Baseline| 66.92 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/deeplabv3_res18.sh)|
-| Student| DeepLabV3-ResNet18|CIRKD| 68.21 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/camvid/deeplabv3_res18.sh)|
-| Student| PSPNet-ResNet18|Baseline|66.73|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/pspnet_res18.sh)|
-| Student| PSPNet-ResNet18|CIRKD|68.65 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/camvid/pspnet_res18.sh)|
+| Role | Network |Method | Val mIoU|train script |Pretrained |
+| -- | -- | -- |-- |-- |-- |
+|  Teacher | DeepLabV3-ResNet101|-|69.84 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/deeplabv3_res101.sh)|[Google Drive](https://drive.google.com/file/d/1BK8Flukoz-Mtd0e1iwFG5rLxi_ES76d2/view?usp=sharing) |
+| Student| DeepLabV3-ResNet18|Baseline| 66.92 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/deeplabv3_res18.sh)||
+| Student| DeepLabV3-ResNet18|CIRKD| 68.21 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/camvid/deeplabv3_res18.sh)||
+| Student| PSPNet-ResNet18|Baseline|66.73|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/pspnet_res18.sh)||
+| Student| PSPNet-ResNet18|CIRKD|68.65 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/camvid/pspnet_res18.sh)||
 
 
 ## Citation
