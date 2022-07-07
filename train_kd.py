@@ -243,7 +243,13 @@ class Trainer(object):
                                                                 device_ids=[args.local_rank],
                                                                 output_device=args.local_rank)
             self.D_model = nn.parallel.DistributedDataParallel(self.D_model, device_ids=[args.local_rank],
-                                                             output_device=args.local_rank)
+                                                                output_device=args.local_rank)
+            self.criterion_cwd = nn.parallel.DistributedDataParallel(self.criterion_cwd, 
+                                                                device_ids=[args.local_rank],
+                                                                output_device=args.local_rank)
+            self.criterion_fitnet = nn.parallel.DistributedDataParallel(self.criterion_fitnet, 
+                                                                device_ids=[args.local_rank],
+                                                                output_device=args.local_rank)
             
         # evaluation metrics
         self.metric = SegmentationMetric(train_dataset.num_class)
