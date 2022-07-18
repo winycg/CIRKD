@@ -8,7 +8,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     --dataset voc \
     --crop-size 512 512 \
     --data [your dataset path]/VOCAug/ \
-	--lambda-memory-pixel 0.01 \
+    --lambda-memory-pixel 0.01 \
 	--lambda-memory-region 0.01 \
     --save-dir [your directory path to store checkpoint files] \
     --log-dir [your directory path to store log files] \
