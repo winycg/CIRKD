@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image
 from models.model_zoo import get_segmentation_model
 from utils.score import SegmentationMetric
-from utils.visualize import get_color_pallete, get_blend_mask
+from utils.visualize import get_color_pallete
 from utils.logger import setup_logger
 from utils.distributed import synchronize, get_rank, make_data_sampler, make_batch_data_sampler
 from dataset.cityscapes import CSValSet
@@ -50,8 +50,6 @@ def parse_args():
     # training hyper params
     parser.add_argument('--aux', action='store_true', default=False,
                         help='Auxiliary loss')
-    parser.add_argument('--blend', action='store_true', default=False,
-                        help='blend mask for visualization')
     # cuda setting
     parser.add_argument('--gpu-id', type=str, default='0') 
     parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -108,27 +106,18 @@ class Evaluator(object):
         # create network
         BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
 
-        if 'former' in args.model:
-            self.model = get_segmentation_model(model=args.model,
-                                                backbone=args.backbone, 
-                                                img_size=args.crop_size,
-                                                pretrained=args.pretrained, 
-                                                batchnorm_layer=BatchNorm2d,
-                                                num_class=self.val_dataset.num_class).to(self.device)
-        else:
-            self.model = get_segmentation_model(model=args.model, 
-                                    backbone=args.backbone,
-                                    aux=args.aux, 
-                                    pretrained=args.pretrained, 
-                                    pretrained_base='None',
-                                    local_rank=args.local_rank,
-                                    norm_layer=BatchNorm2d,
-                                    num_class=self.val_dataset.num_class).to(self.device)
 
+        self.model = get_segmentation_model(model=args.model,
+                                            backbone=args.backbone, 
+                                            img_size=args.crop_size,
+                                            pretrained=args.pretrained, 
+                                            batchnorm_layer=BatchNorm2d,
+                                            num_class=self.val_dataset.num_class).to(self.device)
+    
         self.model.eval()
         with torch.no_grad():
             logger.info('Params: %.2fM FLOPs: %.2fG'
-                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 512, 512))/1e9))
+                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
 
         if args.distributed:
             self.model = nn.parallel.DistributedDataParallel(self.model,
@@ -144,10 +133,23 @@ class Evaluator(object):
 
     def predict_whole(self, net, image, tile_size):
         interp = nn.Upsample(size=tile_size, mode='bilinear', align_corners=True)
-        prediction = net(image.cuda())
+        
+        if args.dataset == 'citys':
+            prediction = net(image[:,:,:,:1024].cuda())
+            if isinstance(prediction, tuple) or isinstance(prediction, list):
+                prediction1 = prediction[0]
+
+            prediction = net(image[:,:,:,1024:].cuda())
+            if isinstance(prediction, tuple) or isinstance(prediction, list):
+                prediction2 = prediction[0]
+            
+            prediction = torch.cat([prediction1, prediction2],dim=-1)
+        else:
+            prediction = net(image.cuda())
         if isinstance(prediction, tuple) or isinstance(prediction, list):
             prediction = prediction[0]
         prediction = interp(prediction)
+        
         return prediction
 
     def eval(self):
@@ -161,7 +163,7 @@ class Evaluator(object):
         for i, (image, target, filename) in enumerate(self.val_loader):
             image = image.to(self.device)
             target = target.long().to(self.device)
-
+            
             N_, C_, H_, W_ = image.size()
             tile_size = (H_, W_)
             full_probs = torch.zeros((1, self.val_dataset.num_class, H_, W_)).cuda()
@@ -188,13 +190,10 @@ class Evaluator(object):
             if self.args.save_pred:
                 pred = torch.argmax(full_probs, 1)
                 pred = pred.cpu().data.numpy()
+
                 predict = pred.squeeze(0)
-                if args.blend:
-                    mask = get_blend_mask(predict, self.args.dataset, filename[0][0])
-                    mask.save(os.path.join(args.outdir, filename[0][0].split('/')[-1]))
-                else:
-                    mask = get_color_pallete(predict, self.args.dataset)
-                    mask.save(os.path.join(args.outdir, os.path.splitext(filename[1][0])[0] + '.png'))
+                mask = get_color_pallete(predict, self.args.dataset)
+                mask.save(os.path.join(args.outdir, os.path.splitext(filename[0])[0] + '.png'))
 
         if self.num_gpus > 1:
             sum_total_correct = torch.tensor(self.metric.total_correct).cuda().to(args.local_rank)

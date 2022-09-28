@@ -1,6 +1,6 @@
 #  Cross-Image Relational Knowledge Distillation for Semantic Segmentation
 
-This repository contains the source code of CIRKD ([Cross-Image Relational Knowledge Distillation for Semantic Segmentation](https://arxiv.org/pdf/2204.06986.pdf)).
+This repository contains the source code of CIRKD ([Cross-Image Relational Knowledge Distillation for Semantic Segmentation](https://arxiv.org/pdf/2204.06986.pdf)) and implementations of semantic segmentation tasks on some datasets.
 
 
 
@@ -18,9 +18,23 @@ PyTorch 1.8.0
 NCCL for CUDA 11.1
 
 Backbones pretrained on ImageNet:
-* [resnet101-imagenet.pth](https://drive.google.com/file/d/1V8-E4wm2VMsfnNiczSIDoSM7JJBMARkP/view?usp=sharing) 
-* [resnet18-imagenet.pth](https://drive.google.com/file/d/1_i0n3ZePtQuh66uQIftiSwN7QAUlFb8_/view?usp=sharing) 
-* [mobilenetv2-imagenet.pth](https://drive.google.com/file/d/12EDZjDSCuIpxPv-dkk1vrxA7ka0b0Yjv/view?usp=sharing) 
+
+| CNN | Transformer |
+| -- | -- |
+|[resnet101-imagenet.pth](https://drive.google.com/file/d/1V8-E4wm2VMsfnNiczSIDoSM7JJBMARkP/view?usp=sharing)| [mit_b0.pth](https://pan.baidu.com/s/1Figp042rc9VNtPc_fkNW3g?pwd=swor )|
+|[resnet18-imagenet.pth](https://drive.google.com/file/d/1_i0n3ZePtQuh66uQIftiSwN7QAUlFb8_/view?usp=sharing) | [mit_b1.pth](https://pan.baidu.com/s/1OUblLHQbq18DvXGzRU58jA?pwd=03yb)|
+|[mobilenetv2-imagenet.pth](https://drive.google.com/file/d/12EDZjDSCuIpxPv-dkk1vrxA7ka0b0Yjv/view?usp=sharing) | [mit_b4.pth](https://pan.baidu.com/s/1j8pXjZZ-YSi2JXpsaQSSTQ?pwd=cvpd )|
+
+
+Support datasets:
+
+| Dataset | Train Size | Val Size | Test Size | Class |
+| -- | -- | -- |-- |-- |
+| Cityscapes | 2975 | 500 | 1525 |19|
+| Pascal VOC Aug | 10582 | 1449 | -- | 21 |
+| CamVid | 367 | 101 | 233 | 11 |
+| ADE20K | 20210 | 2000 | -- | 150 |
+| COCO-Stuff-164K | 118287 | 5000 |-- | 182 |
 
 ## Performance on Cityscapes
 
@@ -39,17 +53,17 @@ All models are trained over 8 * NVIDIA GeForce RTX 3090
 
 ## Performance of Segmentation KD methods on Cityscapes
 
-| Method | Val mIoU |Val mIoU | train script |
-| -- | -- | -- |-- |
-|  Teacher | DeepLabV3-ResNet101| DeepLabV3-ResNet101 | |
-|  Baseline | 78.07 | 78.07 |  |
-|  Student | DeepLabV3-ResNet18| DeepLabV3-MobileNetV2 | |
-|  Baseline | 74.21 | 73.12 |  |
-|  SKD [3]| 75.42 | 73.82 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_skd.sh)|
-|  IFVD [4]| 75.59 | 73.50 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_ifvd.sh)|
-|  CWD [5]| 75.55 | 74.66 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_cwd.sh) |
-|  DSD [6]| 74.81 | 74.11 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_dsd.sh) |
-|  CIRKD [7]| 76.38 | 75.42 |  |
+| Method | Val mIoU |Val mIoU |Val mIoU | train script |
+| -- | -- | -- |-- |-- |
+|  Teacher | DeepLabV3-ResNet101| DeepLabV3-ResNet101 | SegFormer-MiT-B4|
+|  Baseline | 78.07 | 78.07 | 81.23 [[pretrained]](https://pan.baidu.com/s/1fslpQwIeIJ67veX0Q1WbHg?pwd=x6lf)  | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/citys/segformer_mit_b4.sh)|
+|  Student | DeepLabV3-ResNet18| DeepLabV3-MobileNetV2 | SegFormer-MiT-B0||
+|  Baseline | 74.21 | 73.12 | 75.58 [[pretrained]](https://pan.baidu.com/s/1pxM6O8upmf0TPSJJaDw6RA?pwd=umzz)  | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/citys/segformer_mit_b0.sh)|
+|  SKD [3]| 75.42 | 73.82 | 76.43 [[pretrained]](https://pan.baidu.com/s/1uJ-Q2XUZXELgkOPhVRqLdw?pwd=3xuh) | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_skd.sh)|
+|  IFVD [4]| 75.59 | 73.50 |76.30 [[pretrained]](https://pan.baidu.com/s/12X0XGF2ZoS7OCSpXE2Si6A?pwd=m36j) | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_ifvd.sh)|
+|  CWD [5]| 75.55 | 74.66 |74.80 [[pretrained]](https://pan.baidu.com/s/1ViKwRw1XbwB9eH96jiSXMA?pwd=aola) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_cwd.sh) |
+|  DSD [6]| 74.81 | 74.11 |76.62 [[pretrained]](https://pan.baidu.com/s/1gBoF2OFkN90LODuu7n2F-A?pwd=w5j9) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_kd/train_dsd.sh) |
+|  CIRKD [7]| 76.38 | 75.42 | 76.92 [[pretrained]](https://pan.baidu.com/s/1YeZZ68E3s4bmW3QUODK-wQ?pwd=olh6) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/citys/segformer_mit_b0.sh) |
 
 The references are shown in [references.md](https://github.com/winycg/CIRKD/tree/main/losses/references.md)
 
@@ -87,9 +101,36 @@ The CamVid dataset for segmentation is available at [Baidu Drive](https://pan.ba
 | Student| PSPNet-ResNet18|Baseline|66.73|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/camvid/pspnet_res18.sh)||
 | Student| PSPNet-ResNet18|CIRKD|68.65 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/camvid/pspnet_res18.sh)||
 
+## Performance of Segmentation KD methods on ADE20K
+
+| Role | Network |Method | Val mIoU|train script |Pretrained |
+| -- | -- | -- |-- |-- |-- |
+|  Teacher | DeepLabV3-ResNet101|-|42.70 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/ade20k/deeplabv3_res101.sh)|[Baidu Cloud](https://pan.baidu.com/s/1jPe_kNrS1h45JWeLuixNTA?pwd=7qhv ) |
+| Student| DeepLabV3-ResNet18|Baseline| 33.91 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/ade20k/deeplabv3_res18.sh)||
+| Student| DeepLabV3-ResNet18|CIRKD| 35.41 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/ade20k/deeplabv3_res18.sh)||
+
+
+## Performance of Segmentation KD methods on COCO-Stuff-164K
+
+| Role | Network |Method | Val mIoU|train script |Pretrained |
+| -- | -- | -- |-- |-- |-- |
+|  Teacher | DeepLabV3-ResNet101|-|38.71|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/coco_stuff_164k/deeplabv3_res101.sh)|[Baidu Cloud](https://pan.baidu.com/s/1vd55WxC4AKqUpoNT8DWXiw?pwd=9cwu ) |
+| Student| DeepLabV3-ResNet18|Baseline| 32.60 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/coco_stuff_164k/deeplabv3_res18.sh)||
+| Student| DeepLabV3-ResNet18|CIRKD| 33.11 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/coco_stuff_164k/deeplabv3_res18.sh)||
+
+
+
+## Visualization of segmentation mask using pretrained models
+| Dataset | Color Pallete | Blend | Scripts |
+| -- | -- |-- |-- |
+| Pascal VOC |![top1](figures/2007_000033.png) |![top1](figures/2007_000033.jpg) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/visualize/pascal_voc.sh)|
+| Cityscapes |![top1](figures/frankfurt_000000_000576_gtFine_labelIds.png) |![top1](figures/frankfurt_000000_000576_leftImg8bit.png) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/visualize/cityscapes.sh)|
+| ADE20K |![top1](figures/ADE_val_00000053.png) |![top1](figures/ADE_val_00000053.jpg) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/visualize/ade20k.sh)|
+| COCO-Stuff-164K |![top1](figures/000000025394.png) |![top1](figures/000000025394.jpg) |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/visualize/coco_stuff_164k.sh)|
+
 
 ## Citation
-
+We would appreciate it if you could give this repo a star or cite our paper!
 ```
 @inproceedings{yang2022cross,
   title={Cross-image relational knowledge distillation for semantic segmentation},

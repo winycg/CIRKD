@@ -25,8 +25,10 @@ from utils.logger import setup_logger
 from utils.score import SegmentationMetric
 
 from dataset.cityscapes import CSTrainValSet
+from dataset.ade20k import ADETrainSet, ADEDataValSet
 from dataset.camvid import CamvidTrainSet, CamvidValSet
 from dataset.voc import VOCDataTrainSet, VOCDataValSet
+from dataset.coco_stuff_164k import CocoStuff164kTrainSet, CocoStuff164kValSet
 
 from utils.flops import cal_multi_adds, cal_param_size
 
@@ -158,6 +160,14 @@ class Trainer(object):
             train_dataset = CamvidTrainSet(args.data, './dataset/list/CamVid/camvid_train_list.txt', max_iters=args.max_iterations*args.batch_size,
                             ignore_label=args.ignore_label, crop_size=args.crop_size, scale=True, mirror=True)
             val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_val_list.txt')
+        elif args.dataset == 'ade20k':
+            train_dataset = ADETrainSet(args.data, max_iters=args.max_iterations*args.batch_size, ignore_label=args.ignore_label,
+                                        crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = ADEDataValSet(args.data)
+        elif args.dataset == 'coco_stuff_164k':
+            train_dataset = CocoStuff164kTrainSet(args.data, './dataset/list/coco_stuff_164k/coco_stuff_164k_train.txt', max_iters=args.max_iterations*args.batch_size, ignore_label=args.ignore_label,
+                                        crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = CocoStuff164kValSet(args.data, './dataset/list/coco_stuff_164k/coco_stuff_164k_val.txt')
         else:
             raise ValueError('dataset unfind')
     
@@ -212,6 +222,11 @@ class Trainer(object):
                 self.s_model.load_state_dict(torch.load(args.resume, map_location=lambda storage, loc: storage))
 
         # create criterion
+        x = torch.randn(1,3,512,512).cuda()
+        t_y = self.t_model(x)
+        s_y = self.s_model(x)
+        t_channels = t_y[-1].size(1)
+        s_channels = s_y[-1].size(1)
         
         self.criterion = SegCrossEntropyLoss(ignore_index=args.ignore_label).to(self.device)
         self.criterion_kd = CriterionKD(temperature=args.kd_temperature).to(self.device)
@@ -223,6 +238,8 @@ class Trainer(object):
                                                      pixel_contrast_size=args.pixel_contrast_size//train_dataset.num_class+1,
                                                      contrast_kd_temperature=args.contrast_kd_temperature,
                                                      contrast_temperature=args.contrast_temperature,
+                                                     s_channels=s_channels,
+                                                     t_channels=t_channels, 
                                                      ignore_label=args.ignore_label).to(self.device)
 
     

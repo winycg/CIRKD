@@ -19,12 +19,12 @@ import torch.distributed as dist
 from utils.distributed import *
 from utils.logger import setup_logger
 from utils.score import SegmentationMetric
-
 from dataset.cityscapes import CSTrainValSet
 from dataset.ade20k import ADETrainSet, ADEDataValSet
 from dataset.camvid import CamvidTrainSet, CamvidValSet
 from dataset.voc import VOCDataTrainSet, VOCDataValSet
 from dataset.coco_stuff_164k import CocoStuff164kTrainSet, CocoStuff164kValSet
+
 
 from utils.flops import cal_multi_adds, cal_param_size
 from models.model_zoo import get_segmentation_model
@@ -52,7 +52,7 @@ def parse_args():
                         help='Auxiliary loss')
     parser.add_argument('--aux-weight', type=float, default=0.4,
                         help='auxiliary loss weight')
-    parser.add_argument('--batch-size', type=int, default=16, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=2, metavar='N',
                         help='input batch size for training (default: 8)')
     parser.add_argument('--start_epoch', type=int, default=0,
                         metavar='N', help='start epochs (default:0)')
@@ -62,12 +62,15 @@ def parse_args():
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                         help='momentum (default: 0.9)')
+    parser.add_argument('--optimizer-type', type=str, default='sgd',
+                        help='w-decay (default: 5e-4)')
     parser.add_argument('--weight-decay', type=float, default=1e-4, metavar='M',
                         help='w-decay (default: 5e-4)')
     parser.add_argument('--ignore-label', type=int, default=-1, metavar='N',
                         help='input batch size for training (default: 8)')
     
     # cuda setting
+    parser.add_argument('--gpu-id', type=str, default='0') 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--local_rank', type=int, default=0)
@@ -106,14 +109,6 @@ def parse_args():
         if not os.path.exists(args.save_dir):
             os.makedirs(args.save_dir)
 
-    # default settings for epochs, batch_size and lr
-
-    if args.backbone.startswith('resnet'):
-        args.aux = True
-    elif args.backbone.startswith('mobile'):
-        args.aux = False
-    else:
-        raise ValueError('no such network')
 
     return args
     
@@ -137,14 +132,14 @@ class Trainer(object):
             train_dataset = VOCDataTrainSet(args.data, './dataset/list/voc/train_aug.txt', max_iters=args.max_iterations*args.batch_size, 
                                           crop_size=args.crop_size, scale=True, mirror=True)
             val_dataset = VOCDataValSet(args.data, './dataset/list/voc/val.txt')
-        elif args.dataset == 'camvid':
-            train_dataset = CamvidTrainSet(args.data, './dataset/list/CamVid/camvid_train_list.txt', max_iters=args.max_iterations*args.batch_size,
-                            ignore_label=args.ignore_label, crop_size=args.crop_size, scale=True, mirror=True)
-            val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_val_list.txt')
         elif args.dataset == 'ade20k':
             train_dataset = ADETrainSet(args.data, max_iters=args.max_iterations*args.batch_size, ignore_label=args.ignore_label,
                                         crop_size=args.crop_size, scale=True, mirror=True)
             val_dataset = ADEDataValSet(args.data)
+        elif args.dataset == 'camvid':
+            train_dataset = CamvidTrainSet(args.data, './dataset/list/CamVid/camvid_train_list.txt', max_iters=args.max_iterations*args.batch_size,
+                            ignore_label=args.ignore_label, crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_val_list.txt')
         elif args.dataset == 'coco_stuff_164k':
             train_dataset = CocoStuff164kTrainSet(args.data, './dataset/list/coco_stuff_164k/coco_stuff_164k_train.txt', max_iters=args.max_iterations*args.batch_size, ignore_label=args.ignore_label,
                                         crop_size=args.crop_size, scale=True, mirror=True)
@@ -156,16 +151,14 @@ class Trainer(object):
         BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
         self.model = get_segmentation_model(model=args.model,
                                             backbone=args.backbone, 
-                                            local_rank=args.local_rank,
+                                            img_size=args.crop_size,
                                             pretrained=args.pretrained, 
-                                            pretrained_base=args.pretrained_base,
-                                            aux=args.aux, 
-                                            norm_layer=BatchNorm2d,
+                                            batchnorm_layer=BatchNorm2d,
                                             num_class=train_dataset.num_class).to(self.device)
 
         with torch.no_grad():
-            logger.info('Params: %.2fM FLOPs: %.2fG'
-                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
+            logger.info('Params: %.2fM'
+                % (cal_param_size(self.model) / 1e6))
         
 
         args.batch_size = args.batch_size // num_gpus
@@ -196,10 +189,18 @@ class Trainer(object):
 
         # optimizer, for model just includes pretrained, head and auxlayer
         params_list = self.model.parameters()
-        self.optimizer = torch.optim.SGD(params_list,
-                                         lr=args.lr,
-                                         momentum=args.momentum,
-                                         weight_decay=args.weight_decay)
+
+        if args.optimizer_type == 'sgd':
+            self.optimizer = torch.optim.SGD(params_list,
+                                            lr=args.lr,
+                                            momentum=args.momentum,
+                                            weight_decay=args.weight_decay)
+        elif args.optimizer_type == 'adamw':
+            self.optimizer = torch.optim.AdamW(params_list,
+                                               lr=args.lr,
+                                               weight_decay=args.weight_decay)
+        else:
+            raise ValueError('no such optimizer')
 
         if args.distributed:
             self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank],
@@ -244,11 +245,8 @@ class Trainer(object):
             targets = targets.long().to(self.device)
 
             outputs = self.model(images)
-            
-            if self.args.aux:
-                task_loss = self.criterion(outputs[0], targets) + 0.4 * self.criterion(outputs[1], targets)
-            else:
-                task_loss = self.criterion(outputs[0], targets)
+
+            task_loss = self.criterion(outputs[0], targets)
 
             losses = task_loss
             
@@ -301,15 +299,18 @@ class Trainer(object):
             image = image.to(self.device)
             target = target.long().to(self.device)
 
+            image = torch.cat([image[:,:,:,:1024],image[:,:,:,1024:]], dim=0)
             with torch.no_grad():
                 outputs = model(image)
+
+            pred = torch.cat([outputs[0][0],outputs[0][1]], dim=-1).unsqueeze(0)
             
             B, H, W = target.size()
-            outputs[0] = F.interpolate(outputs[0], (H, W), mode='bilinear', align_corners=True)
+            pred = F.interpolate(pred, (H, W), mode='bilinear', align_corners=True)
 
-            self.metric.update(outputs[0], target)
+            self.metric.update(pred, target)
             pixAcc, mIoU = self.metric.get()
-            logger.info("Sample: {:d}, Validation pixAcc: {:.3f}, mIoU: {:.3f}".format(i + 1, pixAcc, mIoU))
+            logger.info(str(args.local_rank) + "Sample: {:d}, Validation pixAcc: {:.3f}, mIoU: {:.3f}".format(i + 1, pixAcc, mIoU))
         
         if self.num_gpus > 1:
             sum_total_correct = torch.tensor(self.metric.total_correct).cuda().to(args.local_rank)
@@ -359,6 +360,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     # reference maskrcnn-benchmark
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.num_gpus = num_gpus
     args.distributed = num_gpus > 1

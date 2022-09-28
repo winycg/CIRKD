@@ -7,21 +7,21 @@ __all__ = ['StudentSegContrast']
 
 class StudentSegContrast(nn.Module):
     def __init__(self, num_classes, pixel_memory_size, region_memory_size, region_contrast_size, pixel_contrast_size, 
-                 contrast_kd_temperature, contrast_temperature, ignore_label):
+                 contrast_kd_temperature, contrast_temperature, s_channels, t_channels, ignore_label):
         super(StudentSegContrast, self).__init__()
         self.base_temperature = 0.1
         self.contrast_kd_temperature = contrast_kd_temperature
         self.contrast_temperature = contrast_temperature
-        self.dim = 256
+        self.dim = t_channels
         self.ignore_label = ignore_label
         self.n_view = 32
 
 
         self.project_head = nn.Sequential(
-            nn.Conv2d(128, 256, 1, bias=False),
-            nn.SyncBatchNorm(256),
+            nn.Conv2d(s_channels, t_channels, 1, bias=False),
+            nn.SyncBatchNorm(t_channels),
             nn.ReLU(True),
-            nn.Conv2d(256, 256, 1, bias=False)
+            nn.Conv2d(t_channels, t_channels, 1, bias=False)
         )
 
         self.num_classes = num_classes
@@ -149,7 +149,7 @@ class StudentSegContrast(nn.Module):
 
         self._dequeue_and_enqueue(ori_t_fea.detach().clone(), ori_labels.detach().clone())
 
-        if idxs.sum() == 0: # just a trick to skip the case of having no semantic embeddings
+        if idxs.sum() == 0: # just a trick to skip all ignored anchor embeddings
             return 0. * (s_feats**2).mean(), 0. * (s_feats**2).mean()
             
         class_num, pixel_queue_size, feat_size = self.teacher_pixel_queue.shape
@@ -175,5 +175,3 @@ class StudentSegContrast(nn.Module):
         region_sim_dis = self.contrast_sim_kd(s_region_logits, t_region_logits.detach())
         
         return pixel_sim_dis, region_sim_dis
-
-

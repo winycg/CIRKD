@@ -4,7 +4,6 @@ import datetime
 import os
 import shutil
 import sys
-import numpy as np
 
 cur_path = os.path.abspath(os.path.dirname(__file__))
 root_path = os.path.split(cur_path)[0]
@@ -17,21 +16,18 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.nn.functional as F
 
-
 from losses import *
 from models.model_zoo import get_segmentation_model
 
-from utils.sagan import Discriminator
 from utils.distributed import *
 from utils.logger import setup_logger
 from utils.score import SegmentationMetric
-from utils.flops import cal_multi_adds, cal_param_size
-
 from dataset.cityscapes import CSTrainValSet
 from dataset.ade20k import ADETrainSet, ADEDataValSet
 from dataset.camvid import CamvidTrainSet, CamvidValSet
 from dataset.voc import VOCDataTrainSet, VOCDataValSet
 from dataset.coco_stuff_164k import CocoStuff164kTrainSet, CocoStuff164kValSet
+from utils.flops import cal_multi_adds, cal_param_size
 
 
 def parse_args():
@@ -67,26 +63,29 @@ def parse_args():
                         help='number of epochs to train (default: 50)')
     parser.add_argument('--lr', type=float, default=0.02, metavar='LR',
                         help='learning rate (default: 1e-4)')
+    parser.add_argument('--optimizer-type', type=str, default='sgd',
+                        help='w-decay (default: 5e-4)')
     parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                         help='momentum (default: 0.9)')
     parser.add_argument('--weight-decay', type=float, default=1e-4, metavar='M',
                         help='w-decay (default: 5e-4)')
 
+    parser.add_argument('--pixel-memory-size', type=int, default=20000)
+    parser.add_argument('--region-memory-size', type=int, default=2000)
+    parser.add_argument('--region-contrast-size', type=int, default=1024)
+    parser.add_argument('--pixel-contrast-size', type=int, default=4096)
 
     parser.add_argument("--kd-temperature", type=float, default=1.0, help="logits KD temperature")
-    parser.add_argument("--lambda-kd", type=float, default=0., help="lambda_kd")
-    parser.add_argument("--lambda-adv", type=float, default=0., help="lambda adversarial loss")
-    parser.add_argument("--lambda-d", type=float, default=0., help="lambda discriminator loss")
-    parser.add_argument("--lambda-skd", type=float, default=0., help="lambda skd")
-    parser.add_argument("--lambda-cwd-fea", type=float, default=0., help="lambda cwd feature")
-    parser.add_argument("--lambda-cwd-logit", type=float, default=0., help="lambda cwd logit")
-    parser.add_argument("--lambda-ifv", type=float, default=0., help="lambda ifvd")
-    parser.add_argument("--lambda-fitnet", type=float, default=0., help="lambda fitnet")
-    parser.add_argument("--lambda-at", type=float, default=0., help="lambda attention transfer")
-    parser.add_argument("--lambda-psd", type=float, default=0., help="lambda pixel similarity KD")
-    parser.add_argument("--lambda-csd", type=float, default=0., help="lambda category similarity KD")
-               
-
+    parser.add_argument("--contrast-kd-temperature", type=float, default=1.0, help="similarity distribution KD temperature")
+    parser.add_argument("--contrast-temperature", type=float, default=0.1, help="similarity distribution temperature")
+    
+    parser.add_argument("--lambda-kd", type=float, default=1., help="lambda_kd")
+    parser.add_argument("--lambda-wsl-kd", type=float, default=0., help="lambda_wsl_kd")
+    parser.add_argument("--lambda-fitnet", type=float, default=0., help="lambda_fitnet")
+    parser.add_argument("--lambda-minibatch-pixel", type=float, default=1., help="lambda mini-batch-based pixel")
+    parser.add_argument("--lambda-memory-pixel", type=float, default=0.1, help="lambda memory-based pixel")
+    parser.add_argument("--lambda-memory-region", type=float, default=0.1, help="lambda memory-based region")
+    
     # cuda setting
     parser.add_argument('--gpu-id', type=str, default='0') 
     parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -131,13 +130,6 @@ def parse_args():
         if not os.path.exists(args.save_dir):
             os.makedirs(args.save_dir)
 
-    if args.student_backbone.startswith('resnet'):
-        args.aux = True
-    elif args.student_backbone.startswith('mobile'):
-        args.aux = False
-    else:
-        raise ValueError('no such network')
-
     return args
 
 
@@ -146,7 +138,6 @@ class Trainer(object):
         self.args = args
         self.device = torch.device(args.device)
         self.num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
-
 
         if args.dataset == 'citys':
             train_dataset = CSTrainValSet(args.data, 
@@ -197,20 +188,16 @@ class Trainer(object):
 
         self.t_model = get_segmentation_model(model=args.teacher_model, 
                                             backbone=args.teacher_backbone,
-                                            local_rank=args.local_rank,
-                                            pretrained_base='None',
+                                            img_size=args.crop_size,
                                             pretrained=args.teacher_pretrained,
-                                            aux=True, 
-                                            norm_layer=nn.BatchNorm2d,
+                                            batchnorm_layer=nn.BatchNorm2d,
                                             num_class=train_dataset.num_class).to(self.args.local_rank)
 
         self.s_model = get_segmentation_model(model=args.student_model, 
                                             backbone=args.student_backbone,
-                                            local_rank=args.local_rank,
-                                            pretrained_base=args.student_pretrained_base,
-                                            pretrained='None',
-                                            aux=args.aux, 
-                                            norm_layer=BatchNorm2d,
+                                            img_size=args.crop_size,
+                                            pretrained=args.student_pretrained,
+                                            batchnorm_layer=BatchNorm2d,
                                             num_class=train_dataset.num_class).to(self.device)
         
         for t_n, t_p in self.t_model.named_parameters():
@@ -218,7 +205,6 @@ class Trainer(object):
         self.t_model.eval()
         self.s_model.eval()
 
-        self.D_model = Discriminator(preprocess_GAN_mode=1, input_channel=train_dataset.num_class, distributed=args.distributed).cuda()
 
         # resume checkpoint if needed
         if args.resume:
@@ -237,43 +223,46 @@ class Trainer(object):
 
         self.criterion = SegCrossEntropyLoss(ignore_index=args.ignore_label).to(self.device)
         self.criterion_kd = CriterionKD(temperature=args.kd_temperature).to(self.device)
-        self.criterion_adv = CriterionAdv('hinge').to(self.device)
-        self.criterion_adv_for_G = CriterionAdvForG('hinge').to(self.device)
-        self.criterion_skd = CriterionStructuralKD().to(self.device)
-        self.criterion_ifv = CriterionIFV(train_dataset.num_class).to(self.device)
-        self.criterion_cwd = CriterionCWD(s_channels, t_channels, norm_type='channel',divergence='kl', temperature=4.).to(self.device)
-        self.criterion_fitnet = CriterionFitNet(s_channels, t_channels).to(self.device)
-        self.criterion_at = CriterionAT().to(self.device)
-        self.criterion_dsd = CriterionDoubleSimKD().to(self.device)
+        self.criterion_minibatch = CriterionMiniBatchCrossImagePair(temperature=args.contrast_temperature, pooling=True).to(self.device)
+        self.criterion_memory_contrast = StudentSegContrast(num_classes=train_dataset.num_class,
+                                                     pixel_memory_size=args.pixel_memory_size,
+                                                     region_memory_size=args.region_memory_size,
+                                                     region_contrast_size=args.region_contrast_size//train_dataset.num_class+1,
+                                                     pixel_contrast_size=args.pixel_contrast_size//train_dataset.num_class+1,
+                                                     contrast_kd_temperature=args.contrast_kd_temperature,
+                                                     contrast_temperature=args.contrast_temperature,
+                                                     s_channels=s_channels,
+                                                     t_channels=t_channels, 
+                                                     ignore_label=args.ignore_label).to(self.device)
 
     
         params_list = nn.ModuleList([])
         params_list.append(self.s_model)
-        params_list.append(self.criterion_cwd)
-        params_list.append(self.criterion_fitnet)
+        params_list.append(self.criterion_memory_contrast)
 
 
-        self.optimizer = torch.optim.SGD(params_list.parameters(),
-                                         lr=args.lr,
-                                         momentum=args.momentum,
-                                         weight_decay=args.weight_decay)
 
-        self.D_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad,
-                                            self.D_model.parameters()), 
-                                            4e-4, [0.9, 0.99])
-        
+        if args.optimizer_type == 'sgd':
+            self.optimizer = torch.optim.SGD(params_list.parameters(),
+                                            lr=args.lr,
+                                            momentum=args.momentum,
+                                            weight_decay=args.weight_decay)
+        elif args.optimizer_type == 'adamw':
+            self.optimizer = torch.optim.AdamW(params_list.parameters(),
+                                               lr=args.lr,
+                                               weight_decay=args.weight_decay)
+        else:
+            raise ValueError('no such optimizer')
+
+
+
         if args.distributed:
             self.s_model = nn.parallel.DistributedDataParallel(self.s_model, 
                                                                 device_ids=[args.local_rank],
                                                                 output_device=args.local_rank)
-            self.D_model = nn.parallel.DistributedDataParallel(self.D_model, device_ids=[args.local_rank],
-                                                                output_device=args.local_rank)
-            self.criterion_cwd = nn.parallel.DistributedDataParallel(self.criterion_cwd, 
-                                                                device_ids=[args.local_rank],
-                                                                output_device=args.local_rank)
-            self.criterion_fitnet = nn.parallel.DistributedDataParallel(self.criterion_fitnet, 
-                                                                device_ids=[args.local_rank],
-                                                                output_device=args.local_rank)
+            self.criterion_memory_contrast = nn.parallel.DistributedDataParallel(self.criterion_memory_contrast, 
+                                                             device_ids=[args.local_rank],
+                                                             output_device=args.local_rank)
             
         # evaluation metrics
         self.metric = SegmentationMetric(train_dataset.num_class)
@@ -316,105 +305,59 @@ class Trainer(object):
 
             s_outputs = self.s_model(images)
             
-            if self.args.aux:
-                task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
-            else:
-                task_loss = self.criterion(s_outputs[0], targets)
+            task_loss = self.criterion(s_outputs[0], targets)
             
+
             kd_loss = torch.tensor(0.).cuda()
-            adv_G_loss = torch.tensor(0.).cuda()
-            adv_D_loss = torch.tensor(0.).cuda()
-            skd_loss = torch.tensor(0.).cuda()
-            cwd_fea_loss = torch.tensor(0.).cuda()
-            cwd_logit_loss = torch.tensor(0.).cuda()
-            ifv_loss = torch.tensor(0.).cuda()
+            wsl_kd_loss = torch.tensor(0.).cuda()
             fitnet_loss = torch.tensor(0.).cuda()
-            at_loss = torch.tensor(0.).cuda()
-            psd_loss = torch.tensor(0.).cuda()
-            csd_loss = torch.tensor(0.).cuda()
+            kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
+
+            minibatch_pixel_contrast_loss = \
+                self.args.lambda_minibatch_pixel * self.criterion_minibatch(s_outputs[-1], t_outputs[-1])
+
+            _, predict = torch.max(s_outputs[0], dim=1) 
+            memory_pixel_contrast_loss, memory_region_contrast_loss = \
+                self.criterion_memory_contrast(s_outputs[-1], t_outputs[-1].detach(), targets, predict)
             
+            memory_pixel_contrast_loss = self.args.lambda_memory_pixel * memory_pixel_contrast_loss
+            memory_region_contrast_loss = self.args.lambda_memory_region * memory_region_contrast_loss
 
-            adv_G_loss = self.args.lambda_adv*self.criterion_adv_for_G(self.D_model(s_outputs[0]))
-
-            adv_D_loss = self.args.lambda_d*(self.criterion_adv(self.D_model(s_outputs[0].detach()), 
-                                            self.D_model(t_outputs[0].detach())))
             
-            if self.args.lambda_kd != 0.:
-                kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
-            if self.args.lambda_skd != 0:
-                skd_loss = self.args.lambda_skd * self.criterion_skd(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_cwd_fea != 0:
-                cwd_fea_loss = self.args.lambda_cwd_fea * self.criterion_cwd(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_cwd_logit != 0:
-                cwd_logit_loss = self.args.lambda_cwd_logit * self.criterion_cwd(s_outputs[0], t_outputs[0])
-            if self.args.lambda_ifv != 0:
-                ifv_loss = self.args.lambda_ifv * self.criterion_ifv(s_outputs[-1], t_outputs[-1], targets)
-            if self.args.lambda_fitnet != 0:
-                fitnet_loss = self.args.lambda_fitnet * self.criterion_fitnet(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_at != 0:
-                at_loss = self.args.lambda_at * self.criterion_at(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_psd != 0. and self.args.lambda_csd != 0.:  
-                feat_s_list = [s_outputs[-2], s_outputs[-1], s_outputs[0]]
-                feat_t_list = [t_outputs[-2], t_outputs[-1], t_outputs[0]]
-                psd_loss, csd_loss = self.criterion_dsd(feat_s_list, feat_t_list)
-                psd_loss = self.args.lambda_psd * psd_loss
-                csd_loss = self.args.lambda_csd * csd_loss
-
-            losses = task_loss + kd_loss + adv_G_loss + \
-                        skd_loss + cwd_fea_loss + cwd_logit_loss +\
-                        ifv_loss + at_loss + fitnet_loss +\
-                        psd_loss + csd_loss 
-            D_losses = adv_D_loss
-
+            losses = task_loss + kd_loss + minibatch_pixel_contrast_loss +\
+                memory_pixel_contrast_loss + memory_region_contrast_loss + fitnet_loss
+            
             lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
             self.optimizer.zero_grad()
             losses.backward()
             self.optimizer.step()
 
-            self.D_optimizer.zero_grad()
-            D_losses.backward()
-            self.D_optimizer.step()
-
-            task_loss_reduced = self.reduce_mean_tensor(task_loss)
-            kd_loss_reduced = self.reduce_mean_tensor(kd_loss)
-            adv_G_loss_reduced = self.reduce_mean_tensor(adv_G_loss)
-            skd_loss_reduced = self.reduce_mean_tensor(skd_loss)
-            cwd_fea_loss_reduced = self.reduce_mean_tensor(cwd_fea_loss)
-            cwd_logit_loss_reduced = self.reduce_mean_tensor(cwd_logit_loss)
-            ifv_loss_reduced = self.reduce_mean_tensor(ifv_loss)
-            at_loss_reduced = self.reduce_mean_tensor(at_loss)
+            task_losses_reduced = self.reduce_mean_tensor(task_loss)
+            kd_losses_reduced = self.reduce_mean_tensor(kd_loss)
+            wsl_kd_loss_reduced = self.reduce_mean_tensor(wsl_kd_loss)
+            minibatch_pixel_contrast_loss_reduced = self.reduce_mean_tensor(minibatch_pixel_contrast_loss)
+            memory_pixel_contrast_loss_reduced = self.reduce_mean_tensor(memory_pixel_contrast_loss)
+            memory_region_contrast_loss_reduced = self.reduce_mean_tensor(memory_region_contrast_loss)
             fitnet_loss_reduced = self.reduce_mean_tensor(fitnet_loss)
-            psd_loss_reduced = self.reduce_mean_tensor(psd_loss)
-            csd_loss_reduced = self.reduce_mean_tensor(csd_loss)
             
             
-            D_losses_reduced = self.reduce_mean_tensor(D_losses)
             eta_seconds = ((time.time() - start_time) / iteration) * (args.max_iterations - iteration)
             eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
             if iteration % log_per_iters == 0 and save_to_disk:
                 logger.info(
-                    "Iters: {:d}/{:d} || Lr: {:.6f} || Task Loss: {:.4f} || KD Loss: {:.4f}" \
-                    "|| Adv_G Loss: {:.4f} || Adv_D Loss: {:.4f}" \
-                    "|| skd_loss: {:.4f} || cwd_fea_loss: {:.4f} || cwd_logit_loss: {:.4f} " \
-                        "|| ifv_loss: {:.4f} || at_loss: {:.4f} || fitnet_loss: {:.4f} " \
-                        "|| psd_loss: {:.4f} || csd_loss: {:.4f} ||" \
-                        "|| Cost Time: {} || Estimated Time: {}".format(
-                        iteration, args.max_iterations, self.optimizer.param_groups[0]['lr'], 
-                        task_loss_reduced.item(),
-                        kd_loss_reduced.item(), 
-                        adv_G_loss_reduced.item(),
-                        D_losses_reduced.item(), 
-                        skd_loss_reduced.item(),
-                        cwd_fea_loss_reduced.item(),
-                        cwd_logit_loss_reduced.item(),
-                        ifv_loss_reduced.item(),
-                        at_loss_reduced.item(),
+                    "Iters: {:d}/{:d} || Lr: {:.6f} || Task Loss: {:.4f} || KD Loss: {:.4f} ||  WSL_KD Loss: {:.4f} " \
+                    "|| Mini-batch p2p Loss: {:.4f} || Memory p2p Loss: {:.4f} || Memory p2r Loss: {:.4f} " \
+                    "|| Fitnet Loss: {:.4f} " \
+                    "|| Cost Time: {} || Estimated Time: {}".format(
+                        iteration, args.max_iterations, self.optimizer.param_groups[0]['lr'], task_losses_reduced.item(),
+                        kd_losses_reduced.item(), 
+                        wsl_kd_loss_reduced.item(),
+                        minibatch_pixel_contrast_loss_reduced.item(),
+                        memory_pixel_contrast_loss_reduced.item(),
+                        memory_region_contrast_loss_reduced.item(),
                         fitnet_loss_reduced.item(),
-                        psd_loss_reduced.item(),
-                        csd_loss_reduced.item(),
-                        str(datetime.timedelta(seconds=int(time.time() - start_time))), 
-                        eta_string))
+                        str(datetime.timedelta(seconds=int(time.time() - start_time))), eta_string))
 
             if iteration % save_per_iters == 0 and save_to_disk:
                 save_checkpoint(self.s_model, self.args, is_best=False)
@@ -481,13 +424,6 @@ class Trainer(object):
         synchronize()
 
 
-def save_npy(array, name):
-    """Save Checkpoint"""
-    if (args.distributed is not True) or (args.distributed and args.local_rank == 0):
-        directory = os.path.expanduser(args.save_dir)
-        np.save(os.path.join(directory, name), array)
-
-
 def save_checkpoint(model, args, is_best=False):
     """Save Checkpoint"""
     directory = os.path.expanduser(args.save_dir)
@@ -510,6 +446,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     # reference maskrcnn-benchmark
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.num_gpus = num_gpus
     args.distributed = num_gpus > 1
