@@ -9,12 +9,11 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     --log-dir [your directory path to store log files] \
     --pretrained-base [your pretrained-backbone path]/resnet18-imagenet.pth
 
+CUDA_VISIBLE_DEVICES=0,1,2 \
 python -m torch.distributed.launch --nproc_per_node=3 eval.py \
     --model deeplabv3 \
     --backbone resnet18 \
     --dataset voc \
     --data [your dataset path]/VOCAug/ \
-    --workers 16 \
     --save-dir [your directory path to store checkpoint files] \
-    --gpu-id 0,1,2 \
     --pretrained [your pretrained model path]
