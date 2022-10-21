@@ -13,3 +13,15 @@ python -m torch.distributed.launch --master_addr 127.5.0.4 --master_port 26501 -
     --save-dir [your directory path to store checkpoint files] \
     --log-dir [your directory path to store log files] \
     --pretrained-base [your pretrained-backbone path]/resnet101-imagenet.pth
+
+
+python -m torch.distributed.launch --master_addr 127.5.0.9 --master_port 2601 --nproc_per_node=8 \
+    eval.py \
+    --model deeplabv3 \
+    --backbone resnet101 \
+    --dataset coco_stuff_164k \
+    --data [your dataset path]/coco_stuff_164k/ \
+    --workers 8 \
+    --save-dir [your directory path to store checkpoint files] \
+    --gpu-id 0,1,2,3,4,5,6,7  \
+    --pretrained [your pretrained model path]
