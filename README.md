@@ -17,6 +17,13 @@ PyTorch 1.8.0
 
 NCCL for CUDA 11.1
 
+Install python packages:
+```
+pip install timm==0.3.2
+pip install mmcv-full==1.2.7
+pip install opencv-python==4.5.1.48
+```
+
 Backbones pretrained on ImageNet:
 
 | CNN | Transformer |
