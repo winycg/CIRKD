@@ -110,9 +110,11 @@ The CamVid dataset for segmentation is available at [Baidu Drive](https://pan.ba
 
 ## Performance of Segmentation KD methods on ADE20K
 
+The ADE20K dataset for segmentation is available at [Google Drive](https://drive.google.com/file/d/10cCHvCZ3HTxtE9iaSlMcMF0oDgtMpVF8/view?usp=share_link )
+
 | Role | Network |Method | Val mIoU|train script |Pretrained |
 | -- | -- | -- |-- |-- |-- |
-|  Teacher | DeepLabV3-ResNet101|-|42.70 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/ade20k/deeplabv3_res101.sh)|[Baidu Cloud](https://pan.baidu.com/s/1jPe_kNrS1h45JWeLuixNTA?pwd=7qhv ) |
+|  Teacher | DeepLabV3-ResNet101|-|42.70 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/ade20k/deeplabv3_res101.sh)|[Google Drive](https://drive.google.com/file/d/1jlywjvZqKTUWCEwdFpPKHzrpNgeckMcO/view?usp=share_link ) |
 | Student| DeepLabV3-ResNet18|Baseline| 33.91 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/ade20k/deeplabv3_res18.sh)||
 | Student| DeepLabV3-ResNet18|CIRKD| 35.41 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/ade20k/deeplabv3_res18.sh)||
 
@@ -121,7 +123,7 @@ The CamVid dataset for segmentation is available at [Baidu Drive](https://pan.ba
 
 | Role | Network |Method | Val mIoU|train script |Pretrained |
 | -- | -- | -- |-- |-- |-- |
-|  Teacher | DeepLabV3-ResNet101|-|38.71|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/coco_stuff_164k/deeplabv3_res101.sh)|[Baidu Cloud](https://pan.baidu.com/s/1vd55WxC4AKqUpoNT8DWXiw?pwd=9cwu ) |
+|  Teacher | DeepLabV3-ResNet101|-|38.71|[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/coco_stuff_164k/deeplabv3_res101.sh)|[Google Drive](https://drive.google.com/file/d/1uOCl8ZYK22d7D1WXG4tnHc6slT8_iSjk/view?usp=share_link ) |
 | Student| DeepLabV3-ResNet18|Baseline| 32.60 | [sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_baseline/coco_stuff_164k/deeplabv3_res18.sh)||
 | Student| DeepLabV3-ResNet18|CIRKD| 33.11 |[sh](https://github.com/winycg/CIRKD/tree/main/train_scripts/train_cirkd/coco_stuff_164k/deeplabv3_res18.sh)||
 
