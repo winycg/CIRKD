@@ -10,7 +10,7 @@ from functools import partial
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 from timm.models.vision_transformer import _cfg
-from mmcv.runner import load_checkpoint
+
 import os
 
 __all__ = ['MiT_B0', 'MiT_B1', 'MiT_B2', 'get_segformer']
@@ -349,10 +349,13 @@ class Segformer(nn.Module):
 
     def init_weights(self, pretrained=None):
         if isinstance(pretrained, str):
-            #logger = get_root_logger()
             this_dir = os.getcwd()
             pretrained =  os.path.join(this_dir, pretrained)
-            load_checkpoint(self, pretrained, map_location='cpu', strict=False, logger=None)
+            old_dict = torch.load(pretrained)
+            model_dict = self.state_dict()
+            old_dict = {k: v for k, v in old_dict.items() if (k in model_dict)}
+            model_dict.update(old_dict)
+            self.load_state_dict(model_dict)
         
 
     def reset_drop_path(self, drop_path_rate):
@@ -591,7 +594,6 @@ def get_segformer(backbone, pretrained, img_size, num_class, batchnorm_layer):
         return MiT_B4(pretrained, img_size, num_class, batchnorm_layer)
     else:
         raise ValueError('no such backbone')
-
 
 if __name__ == '__main__':
     import sys
