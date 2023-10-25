@@ -41,7 +41,7 @@ Support datasets:
 | Pascal VOC Aug | 10582 | 1449 | -- | 21 |
 | CamVid | 367 | 101 | 233 | 11 |
 | ADE20K | 20210 | 2000 | -- | 150 |
-| COCO-Stuff-164K | 118287 | 5000 |-- | 182 |
+| COCO-Stuff-164K | 118287 | 5000 |-- | 172 |
 
 ## Performance on Cityscapes
 
