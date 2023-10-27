@@ -27,7 +27,7 @@ class CocoStuff164kTrainSet(data.Dataset):
         self.files = []
         for name in self.img_ids:
             img_file = osp.join(self.root, 'images/train2017/', name+'.jpg')
-            label_file = osp.join(self.root, 'annotations/train2017/', name+'.png')
+            label_file = osp.join(self.root, 'annotations/train2017/', name+'_labelTrainIds.png')
 
             self.files.append({
                 "img": img_file,
@@ -37,7 +37,7 @@ class CocoStuff164kTrainSet(data.Dataset):
 
         print('{} images are loaded!'.format(len(self.img_ids)))
 
-        self.num_class = 182
+        self.num_class = 171
 
     def __len__(self):
         return len(self.files)
@@ -105,7 +105,7 @@ class CocoStuff164kValSet(data.Dataset):
         self.files = []
         for name in self.img_ids:
             img_file = osp.join(self.root, 'images/val2017/', name+'.jpg')
-            label_file = osp.join(self.root, 'annotations/val2017/', name+'.png')
+            label_file = osp.join(self.root, 'annotations/val2017/', name+'_labelTrainIds.png')
 
             self.files.append({
                 "img": img_file,
@@ -115,7 +115,7 @@ class CocoStuff164kValSet(data.Dataset):
 
         print('{} images are loaded!'.format(len(self.img_ids)))
 
-        self.num_class = 182
+        self.num_class = 171
 
     def __len__(self):
         return len(self.files)
