@@ -41,7 +41,9 @@ Support datasets:
 | Pascal VOC Aug | 10582 | 1449 | -- | 21 |
 | CamVid | 367 | 101 | 233 | 11 |
 | ADE20K | 20210 | 2000 | -- | 150 |
-| COCO-Stuff-164K | 118287 | 5000 |-- | 182 |
+| COCO-Stuff-164K | 118287 | 5000 |-- | 171 |
+
+
 
 ## Performance on Cityscapes
 
@@ -120,6 +122,8 @@ The ADE20K dataset for segmentation is available at [Google Drive](https://drive
 
 
 ## Performance of Segmentation KD methods on COCO-Stuff-164K
+
+The dataset should be converted by the following instruction of [mmseg](https://mmsegmentation.readthedocs.io/en/latest/user_guides/2_dataset_prepare.html#coco-stuff-164k).
 
 | Role | Network |Method | Val mIoU|train script |Pretrained |
 | -- | -- | -- |-- |-- |-- |

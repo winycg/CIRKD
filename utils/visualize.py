@@ -86,7 +86,7 @@ def get_color_pallete(npimg, dataset='pascal_voc'):
 
     if dataset == 'coco_stuff_164k':
         labelmap = npimg
-        labelmap = labelmap.astype(np.float32) / 182
+        labelmap = labelmap.astype(np.float32) / 171
         colormap = cm.jet_r(labelmap)[..., :-1] * 255.0
         out_img = Image.fromarray(np.uint8(colormap))
 
@@ -125,7 +125,7 @@ def get_blend_mask(npimg, dataset='pascal_voc', filename=""):
 
     if dataset == 'coco_stuff_164k':
         labelmap = npimg
-        labelmap = labelmap.astype(np.float32) / 182
+        labelmap = labelmap.astype(np.float32) / 171
         mask = cm.jet_r(labelmap)[..., :-1] * 255.0
 
     # put colormap
