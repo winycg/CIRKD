@@ -37,7 +37,7 @@ class CocoStuff164kTrainSet(data.Dataset):
 
         print('{} images are loaded!'.format(len(self.img_ids)))
 
-        self.num_class = 172
+        self.num_class = 182
 
     def __len__(self):
         return len(self.files)
