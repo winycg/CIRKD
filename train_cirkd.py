@@ -113,6 +113,10 @@ def parse_args():
     parser.add_argument('--student-pretrained', type=str, default='None',
                         help='pretrained seg model')
 
+    # fp16
+    parser.add_argument('--fp16', action='store_true', default=False,
+                        help='Mixed precision training ')
+
                         
     # evaluation only
     parser.add_argument('--val-epoch', type=int, default=1,
@@ -290,6 +294,7 @@ class Trainer(object):
         save_per_iters = self.args.save_per_iters
         start_time = time.time()
         logger.info('Start training, Total Iterations {:d}'.format(args.max_iterations))
+        scaler = torch.cuda.amp.GradScaler()
 
         self.s_model.train()
         for iteration, (images, targets, _) in enumerate(self.train_loader):
@@ -297,37 +302,71 @@ class Trainer(object):
             
             images = images.to(self.device)
             targets = targets.long().to(self.device)
-            
-            with torch.no_grad():
-                t_outputs = self.t_model(images)
 
-            s_outputs = self.s_model(images)
-            
-            if self.args.aux:
-                task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
-            else:
-                task_loss = self.criterion(s_outputs[0], targets)
-            
-            kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
-
-            minibatch_pixel_contrast_loss = \
-                self.args.lambda_minibatch_pixel * self.criterion_minibatch(s_outputs[-1], t_outputs[-1])
-
-            _, predict = torch.max(s_outputs[0], dim=1) 
-            memory_pixel_contrast_loss, memory_region_contrast_loss = \
-                self.criterion_memory_contrast(s_outputs[-1], t_outputs[-1].detach(), targets, predict)
-            
-            memory_pixel_contrast_loss = self.args.lambda_memory_pixel * memory_pixel_contrast_loss
-            memory_region_contrast_loss = self.args.lambda_memory_region * memory_region_contrast_loss
-
-            
-            losses = task_loss + kd_loss + minibatch_pixel_contrast_loss +\
-                memory_pixel_contrast_loss + memory_region_contrast_loss
-            
-            lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
             self.optimizer.zero_grad()
-            losses.backward()
-            self.optimizer.step()
+            if args.fp16 is True:
+                with torch.cuda.amp.autocast():
+                    with torch.no_grad():
+                        t_outputs = self.t_model(images)
+
+                    s_outputs = self.s_model(images)
+                    
+                    if self.args.aux:
+                        task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
+                    else:
+                        task_loss = self.criterion(s_outputs[0], targets)
+                    
+                    kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
+
+                    minibatch_pixel_contrast_loss = \
+                        self.args.lambda_minibatch_pixel * self.criterion_minibatch(s_outputs[-1], t_outputs[-1])
+
+                    _, predict = torch.max(s_outputs[0], dim=1) 
+                    memory_pixel_contrast_loss, memory_region_contrast_loss = \
+                        self.criterion_memory_contrast(s_outputs[-1], t_outputs[-1].detach(), targets, predict)
+                    
+                    memory_pixel_contrast_loss = self.args.lambda_memory_pixel * memory_pixel_contrast_loss
+                    memory_region_contrast_loss = self.args.lambda_memory_region * memory_region_contrast_loss
+
+                
+                losses = task_loss + kd_loss + minibatch_pixel_contrast_loss +\
+                    memory_pixel_contrast_loss + memory_region_contrast_loss
+                
+                lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
+                scaler.scale(losses).backward()
+                scaler.step(self.optimizer)
+                scaler.update()
+            else:
+                with torch.no_grad():
+                    t_outputs = self.t_model(images)
+
+                s_outputs = self.s_model(images)
+                
+                if self.args.aux:
+                    task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
+                else:
+                    task_loss = self.criterion(s_outputs[0], targets)
+                
+                kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
+
+                minibatch_pixel_contrast_loss = \
+                    self.args.lambda_minibatch_pixel * self.criterion_minibatch(s_outputs[-1], t_outputs[-1])
+
+                _, predict = torch.max(s_outputs[0], dim=1) 
+                memory_pixel_contrast_loss, memory_region_contrast_loss = \
+                    self.criterion_memory_contrast(s_outputs[-1], t_outputs[-1].detach(), targets, predict)
+                
+                memory_pixel_contrast_loss = self.args.lambda_memory_pixel * memory_pixel_contrast_loss
+                memory_region_contrast_loss = self.args.lambda_memory_region * memory_region_contrast_loss
+
+                
+                losses = task_loss + kd_loss + minibatch_pixel_contrast_loss +\
+                    memory_pixel_contrast_loss + memory_region_contrast_loss
+                
+                lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
+                self.optimizer.zero_grad()
+                losses.backward()
+                self.optimizer.step()
 
             task_losses_reduced = self.reduce_mean_tensor(task_loss)
             kd_losses_reduced = self.reduce_mean_tensor(kd_loss)

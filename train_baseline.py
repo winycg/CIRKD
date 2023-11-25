@@ -91,7 +91,10 @@ def parse_args():
     parser.add_argument('--pretrained', type=str, default='None',
                         help='pretrained seg model')
 
-                        
+    # fp16
+    parser.add_argument('--fp16', action='store_true', default=False,
+                        help='Mixed precision training ')
+
     # evaluation only
     parser.add_argument('--val-epoch', type=int, default=1,
                         help='run validation every val-epoch')
@@ -163,9 +166,9 @@ class Trainer(object):
                                             norm_layer=BatchNorm2d,
                                             num_class=train_dataset.num_class).to(self.device)
 
-        with torch.no_grad():
-            logger.info('Params: %.2fM FLOPs: %.2fG'
-                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
+        # with torch.no_grad():
+        #     logger.info('Params: %.2fM FLOPs: %.2fG'
+        #         % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
         
 
         args.batch_size = args.batch_size // num_gpus
@@ -235,6 +238,7 @@ class Trainer(object):
         save_per_iters = self.args.save_per_iters
         start_time = time.time()
         logger.info('Start training, Total Iterations {:d}'.format(args.max_iterations))
+        scaler = torch.cuda.amp.GradScaler()
 
         self.model.train()
         
@@ -243,21 +247,37 @@ class Trainer(object):
             images = images.to(self.device)
             targets = targets.long().to(self.device)
 
-            outputs = self.model(images)
-            
-            if self.args.aux:
-                task_loss = self.criterion(outputs[0], targets) + 0.4 * self.criterion(outputs[1], targets)
-            else:
-                task_loss = self.criterion(outputs[0], targets)
-
-            losses = task_loss
-            
-
-            lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
             self.optimizer.zero_grad()
-            losses.backward()
-            self.optimizer.step()
 
+            if args.fp16 is True:
+                with torch.cuda.amp.autocast():
+                    outputs = self.model(images)
+                
+                    if self.args.aux:
+                        task_loss = self.criterion(outputs[0], targets) + 0.4 * self.criterion(outputs[1], targets)
+                    else:
+                        task_loss = self.criterion(outputs[0], targets)
+
+                losses = task_loss
+                
+
+                lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
+                scaler.scale(losses).backward()
+                scaler.step(self.optimizer)
+                scaler.update()
+            else:
+                outputs = self.model(images)
+                if self.args.aux:
+                    task_loss = self.criterion(outputs[0], targets) + 0.4 * self.criterion(outputs[1], targets)
+                else:
+                    task_loss = self.criterion(outputs[0], targets)
+
+                losses = task_loss
+
+                lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
+                losses.backward()
+                self.optimizer.step()
+            
             # reduce losses over all GPUs for logging purposes
             task_losses_reduced = self.reduce_mean_tensor(task_loss)
             
