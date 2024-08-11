@@ -116,7 +116,10 @@ def parse_args():
     parser.add_argument('--student-pretrained', type=str, default='None',
                         help='pretrained seg model')
 
-                        
+    # fp16
+    parser.add_argument('--fp16', action='store_true', default=False,
+                        help='Mixed precision training ')
+
     # evaluation only
     parser.add_argument('--val-epoch', type=int, default=1,
                         help='run validation every val-epoch')
@@ -303,6 +306,7 @@ class Trainer(object):
         save_per_iters = self.args.save_per_iters
         start_time = time.time()
         logger.info('Start training, Total Iterations {:d}'.format(args.max_iterations))
+        scaler = torch.cuda.amp.GradScaler()
 
         self.s_model.train()
         for iteration, (images, targets, _) in enumerate(self.train_loader):
@@ -310,66 +314,129 @@ class Trainer(object):
             
             images = images.to(self.device)
             targets = targets.long().to(self.device)
-            
-            with torch.no_grad():
-                t_outputs = self.t_model(images)
 
-            s_outputs = self.s_model(images)
-            
-            if self.args.aux:
-                task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
-            else:
-                task_loss = self.criterion(s_outputs[0], targets)
-            
-            kd_loss = torch.tensor(0.).cuda()
-            adv_G_loss = torch.tensor(0.).cuda()
-            adv_D_loss = torch.tensor(0.).cuda()
-            skd_loss = torch.tensor(0.).cuda()
-            cwd_fea_loss = torch.tensor(0.).cuda()
-            cwd_logit_loss = torch.tensor(0.).cuda()
-            ifv_loss = torch.tensor(0.).cuda()
-            fitnet_loss = torch.tensor(0.).cuda()
-            at_loss = torch.tensor(0.).cuda()
-            psd_loss = torch.tensor(0.).cuda()
-            csd_loss = torch.tensor(0.).cuda()
-            
-
-            adv_G_loss = self.args.lambda_adv*self.criterion_adv_for_G(self.D_model(s_outputs[0]))
-
-            adv_D_loss = self.args.lambda_d*(self.criterion_adv(self.D_model(s_outputs[0].detach()), 
-                                            self.D_model(t_outputs[0].detach())))
-            
-            if self.args.lambda_kd != 0.:
-                kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
-            if self.args.lambda_skd != 0:
-                skd_loss = self.args.lambda_skd * self.criterion_skd(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_cwd_fea != 0:
-                cwd_fea_loss = self.args.lambda_cwd_fea * self.criterion_cwd(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_cwd_logit != 0:
-                cwd_logit_loss = self.args.lambda_cwd_logit * self.criterion_cwd(s_outputs[0], t_outputs[0])
-            if self.args.lambda_ifv != 0:
-                ifv_loss = self.args.lambda_ifv * self.criterion_ifv(s_outputs[-1], t_outputs[-1], targets)
-            if self.args.lambda_fitnet != 0:
-                fitnet_loss = self.args.lambda_fitnet * self.criterion_fitnet(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_at != 0:
-                at_loss = self.args.lambda_at * self.criterion_at(s_outputs[-1], t_outputs[-1])
-            if self.args.lambda_psd != 0. and self.args.lambda_csd != 0.:  
-                feat_s_list = [s_outputs[-2], s_outputs[-1], s_outputs[0]]
-                feat_t_list = [t_outputs[-2], t_outputs[-1], t_outputs[0]]
-                psd_loss, csd_loss = self.criterion_dsd(feat_s_list, feat_t_list)
-                psd_loss = self.args.lambda_psd * psd_loss
-                csd_loss = self.args.lambda_csd * csd_loss
-
-            losses = task_loss + kd_loss + adv_G_loss + \
-                        skd_loss + cwd_fea_loss + cwd_logit_loss +\
-                        ifv_loss + at_loss + fitnet_loss +\
-                        psd_loss + csd_loss 
-            D_losses = adv_D_loss
-
-            lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
             self.optimizer.zero_grad()
-            losses.backward()
-            self.optimizer.step()
+            if args.fp16 is True:
+                with torch.cuda.amp.autocast():
+                    with torch.no_grad():
+                        t_outputs = self.t_model(images)
+
+                    s_outputs = self.s_model(images)
+                    
+                    if self.args.aux:
+                        task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
+                    else:
+                        task_loss = self.criterion(s_outputs[0], targets)
+                    
+                    kd_loss = torch.tensor(0.).cuda()
+                    adv_G_loss = torch.tensor(0.).cuda()
+                    adv_D_loss = torch.tensor(0.).cuda()
+                    skd_loss = torch.tensor(0.).cuda()
+                    cwd_fea_loss = torch.tensor(0.).cuda()
+                    cwd_logit_loss = torch.tensor(0.).cuda()
+                    ifv_loss = torch.tensor(0.).cuda()
+                    fitnet_loss = torch.tensor(0.).cuda()
+                    at_loss = torch.tensor(0.).cuda()
+                    psd_loss = torch.tensor(0.).cuda()
+                    csd_loss = torch.tensor(0.).cuda()
+                    
+
+                    adv_G_loss = self.args.lambda_adv*self.criterion_adv_for_G(self.D_model(s_outputs[0]))
+
+                    adv_D_loss = self.args.lambda_d*(self.criterion_adv(self.D_model(s_outputs[0].detach()), 
+                                                    self.D_model(t_outputs[0].detach())))
+                    
+                    if self.args.lambda_kd != 0.:
+                        kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
+                    if self.args.lambda_skd != 0:
+                        skd_loss = self.args.lambda_skd * self.criterion_skd(s_outputs[-1], t_outputs[-1])
+                    if self.args.lambda_cwd_fea != 0:
+                        cwd_fea_loss = self.args.lambda_cwd_fea * self.criterion_cwd(s_outputs[-1], t_outputs[-1])
+                    if self.args.lambda_cwd_logit != 0:
+                        cwd_logit_loss = self.args.lambda_cwd_logit * self.criterion_cwd(s_outputs[0], t_outputs[0])
+                    if self.args.lambda_ifv != 0:
+                        ifv_loss = self.args.lambda_ifv * self.criterion_ifv(s_outputs[-1], t_outputs[-1], targets)
+                    if self.args.lambda_fitnet != 0:
+                        fitnet_loss = self.args.lambda_fitnet * self.criterion_fitnet(s_outputs[-1], t_outputs[-1])
+                    if self.args.lambda_at != 0:
+                        at_loss = self.args.lambda_at * self.criterion_at(s_outputs[-1], t_outputs[-1])
+                    if self.args.lambda_psd != 0. and self.args.lambda_csd != 0.:  
+                        feat_s_list = [s_outputs[-2], s_outputs[-1], s_outputs[0]]
+                        feat_t_list = [t_outputs[-2], t_outputs[-1], t_outputs[0]]
+                        psd_loss, csd_loss = self.criterion_dsd(feat_s_list, feat_t_list)
+                        psd_loss = self.args.lambda_psd * psd_loss
+                        csd_loss = self.args.lambda_csd * csd_loss
+
+                losses = task_loss + kd_loss + adv_G_loss + \
+                            skd_loss + cwd_fea_loss + cwd_logit_loss +\
+                            ifv_loss + at_loss + fitnet_loss +\
+                            psd_loss + csd_loss 
+                D_losses = adv_D_loss
+
+                lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
+                scaler.scale(losses).backward()
+                scaler.step(self.optimizer)
+                scaler.update()
+            else:
+                with torch.no_grad():
+                    t_outputs = self.t_model(images)
+
+                s_outputs = self.s_model(images)
+                
+                if self.args.aux:
+                    task_loss = self.criterion(s_outputs[0], targets) + 0.4 * self.criterion(s_outputs[1], targets)
+                else:
+                    task_loss = self.criterion(s_outputs[0], targets)
+                
+                kd_loss = torch.tensor(0.).cuda()
+                adv_G_loss = torch.tensor(0.).cuda()
+                adv_D_loss = torch.tensor(0.).cuda()
+                skd_loss = torch.tensor(0.).cuda()
+                cwd_fea_loss = torch.tensor(0.).cuda()
+                cwd_logit_loss = torch.tensor(0.).cuda()
+                ifv_loss = torch.tensor(0.).cuda()
+                fitnet_loss = torch.tensor(0.).cuda()
+                at_loss = torch.tensor(0.).cuda()
+                psd_loss = torch.tensor(0.).cuda()
+                csd_loss = torch.tensor(0.).cuda()
+                
+
+                adv_G_loss = self.args.lambda_adv*self.criterion_adv_for_G(self.D_model(s_outputs[0]))
+
+                adv_D_loss = self.args.lambda_d*(self.criterion_adv(self.D_model(s_outputs[0].detach()), 
+                                                self.D_model(t_outputs[0].detach())))
+                
+                if self.args.lambda_kd != 0.:
+                    kd_loss = self.args.lambda_kd * self.criterion_kd(s_outputs[0], t_outputs[0])
+                if self.args.lambda_skd != 0:
+                    skd_loss = self.args.lambda_skd * self.criterion_skd(s_outputs[-1], t_outputs[-1])
+                if self.args.lambda_cwd_fea != 0:
+                    cwd_fea_loss = self.args.lambda_cwd_fea * self.criterion_cwd(s_outputs[-1], t_outputs[-1])
+                if self.args.lambda_cwd_logit != 0:
+                    cwd_logit_loss = self.args.lambda_cwd_logit * self.criterion_cwd(s_outputs[0], t_outputs[0])
+                if self.args.lambda_ifv != 0:
+                    ifv_loss = self.args.lambda_ifv * self.criterion_ifv(s_outputs[-1], t_outputs[-1], targets)
+                if self.args.lambda_fitnet != 0:
+                    fitnet_loss = self.args.lambda_fitnet * self.criterion_fitnet(s_outputs[-1], t_outputs[-1])
+                if self.args.lambda_at != 0:
+                    at_loss = self.args.lambda_at * self.criterion_at(s_outputs[-1], t_outputs[-1])
+                if self.args.lambda_psd != 0. and self.args.lambda_csd != 0.:  
+                    feat_s_list = [s_outputs[-2], s_outputs[-1], s_outputs[0]]
+                    feat_t_list = [t_outputs[-2], t_outputs[-1], t_outputs[0]]
+                    psd_loss, csd_loss = self.criterion_dsd(feat_s_list, feat_t_list)
+                    psd_loss = self.args.lambda_psd * psd_loss
+                    csd_loss = self.args.lambda_csd * csd_loss
+
+                losses = task_loss + kd_loss + adv_G_loss + \
+                            skd_loss + cwd_fea_loss + cwd_logit_loss +\
+                            ifv_loss + at_loss + fitnet_loss +\
+                            psd_loss + csd_loss 
+                D_losses = adv_D_loss
+
+                lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
+                self.optimizer.zero_grad()
+                losses.backward()
+                self.optimizer.step()
 
             self.D_optimizer.zero_grad()
             D_losses.backward()
