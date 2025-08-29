@@ -4,8 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .base_models.mobilenetv2 import get_mobilenet_v2
+from .base_models.mobilevit import get_mobilevit_x_small, get_mobilevit_small, get_mobilevit_xx_small
 
-__all__ = ['get_deeplabv3_mobile']
+__all__ = ['get_deeplabv3_mobile', ]
 
 
 class DeepLabV3(nn.Module):
@@ -13,13 +14,26 @@ class DeepLabV3(nn.Module):
     def __init__(self, nclass, backbone='mobilenetv2', local_rank=None, pretrained_base=True, **kwargs):
         super(DeepLabV3, self).__init__()
         
-        self.pretrained = get_mobilenet_v2(pretrained=pretrained_base, local_rank=local_rank, norm_layer=kwargs['norm_layer'])
-        self.head = _DeepLabHead(320, nclass, **kwargs)
+        if backbone == 'mobilenetv2':
+            self.pretrained = get_mobilenet_v2(pretrained=pretrained_base, local_rank=local_rank, norm_layer=kwargs['norm_layer'])
+            self.head = _DeepLabHead(320, nclass, **kwargs)
+        elif backbone == 'mobilevit_x_small':
+            self.pretrained = get_mobilevit_x_small(pretrained_base)
+            self.head = _DeepLabHead(384, nclass, **kwargs)
+        elif backbone == 'mobilevit_small':
+            self.pretrained = get_mobilevit_small(pretrained_base)
+            self.head = _DeepLabHead(640, nclass, **kwargs)
+        elif backbone == 'mobilevit_xx_small':
+            self.pretrained = get_mobilevit_xx_small(pretrained_base)
+            self.head = _DeepLabHead(320, nclass, **kwargs)
+        else:
+            raise KeyError('no such network')
+
+        
 
     def forward(self, x):
         size = x.size()[2:]
         c4 = self.pretrained(x)
-
         x, x_feat_after_aspp = self.head(c4)
         return [x, x_feat_after_aspp]
         

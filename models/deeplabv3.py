@@ -32,7 +32,7 @@ class DeepLabV3(SegBaseModel):
     def __init__(self, nclass, backbone='resnet50', aux=False, local_rank=None, pretrained_base=True, **kwargs):
         super(DeepLabV3, self).__init__(nclass, aux, backbone, local_rank, pretrained_base=pretrained_base, **kwargs)
         self.aux = aux
-        if backbone == 'resnet18':
+        if backbone.startswith('resnet18') or backbone.startswith('resnet34'):
             in_channels = 512
         else:
             in_channels = 2048
@@ -75,9 +75,9 @@ class _DeepLabHead(nn.Module):
         self.aspp = _ASPP(in_channels, [12, 24, 36], norm_layer=norm_layer, norm_kwargs=norm_kwargs, **kwargs)
         
         if in_channels == 512:
-            out_channels = 128
+            out_channels = 512
         elif in_channels == 2048:
-            out_channels = 256
+            out_channels = 512
         else:
             raise 
 
@@ -131,9 +131,9 @@ class _ASPP(nn.Module):
     def __init__(self, in_channels, atrous_rates, norm_layer, norm_kwargs, **kwargs):
         super(_ASPP, self).__init__()
         if in_channels == 512:
-            out_channels = 128
+            out_channels = 512
         elif in_channels == 2048:
-            out_channels = 256
+            out_channels = 512
         else:
             raise 
 

@@ -1,5 +1,4 @@
 import math
-from statistics import mode
 from tkinter.tix import MAIN
 from pip import main
 import torch
@@ -10,7 +9,7 @@ from functools import partial
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 from timm.models.vision_transformer import _cfg
-
+#from mmcv.runner import load_checkpoint
 import os
 
 __all__ = ['MiT_B0', 'MiT_B1', 'MiT_B2', 'get_segformer']
@@ -349,14 +348,17 @@ class Segformer(nn.Module):
 
     def init_weights(self, pretrained=None):
         if isinstance(pretrained, str):
+            #logger = get_root_logger()
             this_dir = os.getcwd()
             pretrained =  os.path.join(this_dir, pretrained)
+            #load_checkpoint(self, pretrained, map_location='cpu', strict=False, logger=None)
             old_dict = torch.load(pretrained)
             model_dict = self.state_dict()
             old_dict = {k: v for k, v in old_dict.items() if (k in model_dict)}
             model_dict.update(old_dict)
             self.load_state_dict(model_dict)
-        
+            print('Load pre-trained model successfully!')
+
 
     def reset_drop_path(self, drop_path_rate):
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(self.depths))]
@@ -604,16 +606,10 @@ if __name__ == '__main__':
     from utils import cal_param_size, get_flops
 
     model = MiT_B0(pretrained='../pretrained_backbones/mit_b0.pth',
-                   img_size=(1024, 1024),
-                   num_classes=19,
-                   batchnorm_layer=nn.BatchNorm2d).cuda()
+                   img_size=1024,
+                   num_classes=19).cuda()
 
-    x = torch.ones(1, 3, 1024, 1024).cuda()
-    y = model(x)
-    print('y[0]', y[0].size())
-    print('y[1]', y[1].size())
-    print('y[2]', y[2].size())
-    exit()
+    x = torch.ones(1, 3, 1024, 2048).cuda()
     details = get_flops(model, x.size(), net_type='transformer')
     params = cal_param_size(model)
     print(details*1e-9)

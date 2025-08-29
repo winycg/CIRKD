@@ -31,7 +31,7 @@ class PSPNet(SegBaseModel):
 
     def __init__(self, nclass, backbone='resnet50', aux=False, local_rank=None, pretrained_base=True, **kwargs):
         super(PSPNet, self).__init__(nclass, aux, backbone, local_rank, pretrained_base=pretrained_base, **kwargs)
-        if backbone == 'resnet18':
+        if backbone.startswith('resnet18') or backbone.startswith('resnet34'):
             in_channels = 512
         else:
             in_channels = 2048
@@ -110,7 +110,7 @@ class _PSPHead(nn.Module):
         if in_channels == 512:
             out_channels = 128
         elif in_channels == 2048:
-            out_channels = 512
+            out_channels = 256
         else:
             raise 
         self.block = nn.Sequential(

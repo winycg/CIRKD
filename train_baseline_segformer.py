@@ -73,7 +73,7 @@ def parse_args():
     parser.add_argument('--gpu-id', type=str, default='0') 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--resume', type=str, default=None,
                         help='put the path to resuming file if needed')
@@ -360,7 +360,6 @@ if __name__ == '__main__':
     args = parse_args()
 
     # reference maskrcnn-benchmark
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.num_gpus = num_gpus
     args.distributed = num_gpus > 1

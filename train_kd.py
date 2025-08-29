@@ -88,10 +88,9 @@ def parse_args():
                
 
     # cuda setting
-    parser.add_argument('--gpu-id', type=str, default='0') 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--resume', type=str, default=None,
                         help='put the path to resuming file if needed')
@@ -398,7 +397,7 @@ class Trainer(object):
                     "|| Adv_G Loss: {:.4f} || Adv_D Loss: {:.4f}" \
                     "|| skd_loss: {:.4f} || cwd_fea_loss: {:.4f} || cwd_logit_loss: {:.4f} " \
                         "|| ifv_loss: {:.4f} || at_loss: {:.4f} || fitnet_loss: {:.4f} " \
-                        "|| psd_loss: {:.4f} || csd_loss: {:.4f} ||" \
+                        "|| psd_loss: {:.4f} || csd_loss: {:.4f} " \
                         "|| Cost Time: {} || Estimated Time: {}".format(
                         iteration, args.max_iterations, self.optimizer.param_groups[0]['lr'], 
                         task_loss_reduced.item(),

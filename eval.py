@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image
 from models.model_zoo import get_segmentation_model
 from utils.score import SegmentationMetric
-from utils.visualize import get_color_pallete, get_blend_mask
+from utils.visualize import get_color_pallete
 from utils.logger import setup_logger
 from utils.distributed import synchronize, get_rank, make_data_sampler, make_batch_data_sampler
 from dataset.cityscapes import CSValSet
@@ -27,7 +27,7 @@ from dataset.ade20k import ADEDataValSet
 from dataset.voc import VOCDataValSet
 from dataset.coco_stuff_164k import CocoStuff164kValSet
 from utils.flops import cal_multi_adds, cal_param_size
-
+from fvcore.nn import FlopCountAnalysis
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Semantic Segmentation validation With Pytorch')
@@ -50,13 +50,11 @@ def parse_args():
     # training hyper params
     parser.add_argument('--aux', action='store_true', default=False,
                         help='Auxiliary loss')
-    parser.add_argument('--blend', action='store_true', default=False,
-                        help='blend mask for visualization')
     # cuda setting
     parser.add_argument('--gpu-id', type=str, default='0') 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--pretrained', type=str, default='psp_resnet18_citys_best_model.pth',
                         help='pretrained seg model')
@@ -127,8 +125,17 @@ class Evaluator(object):
 
         self.model.eval()
         with torch.no_grad():
-            logger.info('Params: %.2fM FLOPs: %.2fG'
-                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 512, 512))/1e9))
+            self.model.eval()
+            if 'vit' in args.backbone.lower():
+                logger.info('Params: %.2fM '
+                    % (cal_param_size(self.model) / 1e6))
+                flops = FlopCountAnalysis(self.model, torch.randn(1,3,512, 512).cuda())
+                print(flops.total()/1e9)
+            else:
+                logger.info('Params: %.2fM FLOPs: %.2fG'
+                    % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 512, 512))/1e9))
+                flops = FlopCountAnalysis(self.model, torch.randn(1,3,512, 512).cuda())
+                print(flops.total()/1e9)
 
         if args.distributed:
             self.model = nn.parallel.DistributedDataParallel(self.model,
@@ -188,13 +195,10 @@ class Evaluator(object):
             if self.args.save_pred:
                 pred = torch.argmax(full_probs, 1)
                 pred = pred.cpu().data.numpy()
+
                 predict = pred.squeeze(0)
-                if args.blend:
-                    mask = get_blend_mask(predict, self.args.dataset, filename[0][0])
-                    mask.save(os.path.join(args.outdir, filename[0][0].split('/')[-1]))
-                else:
-                    mask = get_color_pallete(predict, self.args.dataset)
-                    mask.save(os.path.join(args.outdir, os.path.splitext(filename[1][0])[0] + '.png'))
+                mask = get_color_pallete(predict, self.args.dataset)
+                mask.save(os.path.join(args.outdir, os.path.splitext(filename[0])[0] + '.png'))
 
         if self.num_gpus > 1:
             sum_total_correct = torch.tensor(self.metric.total_correct).cuda().to(args.local_rank)
@@ -220,7 +224,6 @@ class Evaluator(object):
 
 if __name__ == '__main__':
     args = parse_args()
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = num_gpus > 1
     if not args.no_cuda and torch.cuda.is_available():

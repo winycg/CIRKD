@@ -157,14 +157,14 @@ class CSValSet(data.Dataset):
         label = self.id2trainId(label)
         
         size = image.shape
-        label_name = datafiles["name"]
+        name = datafiles["name"]
 
         image = np.asarray(image, np.float32)
         image = image - np.array([104.00698793, 116.66876762, 122.67891434])
         img_h, img_w = label.shape
         image = image.transpose((2, 0, 1)).astype(np.float32)
         
-        return image.copy(), label.copy(), (datafiles["img"], label_name)
+        return image.copy(), label.copy(), name
 
 
 class CSTestSet(data.Dataset):
@@ -194,4 +194,4 @@ class CSTestSet(data.Dataset):
         image = np.asarray(image, np.float32)
         image = image - np.array([104.00698793, 116.66876762, 122.67891434])
         image = image.transpose((2, 0, 1)).astype(np.float32)
-        return image, np.array(size), (datafiles["img"], name)
+        return image, np.array(size), name

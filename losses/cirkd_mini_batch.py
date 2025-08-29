@@ -27,10 +27,9 @@ class GatherLayer(torch.autograd.Function):
 
 
 class CriterionMiniBatchCrossImagePair(nn.Module):
-    def __init__(self, temperature, pooling=False):
+    def __init__(self, temperature):
         super(CriterionMiniBatchCrossImagePair, self).__init__()
         self.temperature = temperature
-        self.pooling = pooling
 
     def pair_wise_sim_map(self, fea_0, fea_1):
         C, H, W = fea_0.size()
@@ -59,11 +58,16 @@ class CriterionMiniBatchCrossImagePair(nn.Module):
         #feat_T = self.concat_all_gather(feat_T)
         #feat_S = torch.cat(GatherLayer.apply(feat_S), dim=0)
         B, C, H, W = feat_S.size()
-
-        if self.pooling:
-            avg_pool = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, ceil_mode=True)
-            feat_S = avg_pool(feat_S)
-            feat_T= avg_pool(feat_T)
+        
+        if H >= 256 and W >=256:
+            patch_w = 4
+            patch_h = 4
+            #maxpool = nn.MaxPool2d(kernel_size=(patch_h, patch_w), stride=(patch_h, patch_w), padding=0, ceil_mode=True)
+            maxpool = nn.AvgPool2d(kernel_size=(patch_h, patch_w), stride=(patch_h, patch_w), padding=0, ceil_mode=True)
+            feat_S = maxpool(feat_S)
+            feat_T= maxpool(feat_T)
+        
+        
         
         feat_S = F.normalize(feat_S, p=2, dim=1)
         feat_T = F.normalize(feat_T, p=2, dim=1)
@@ -71,9 +75,10 @@ class CriterionMiniBatchCrossImagePair(nn.Module):
         sim_dis = torch.tensor(0.).cuda()
         for i in range(B):
             for j in range(B):
+                
                 s_sim_map = self.pair_wise_sim_map(feat_S[i], feat_S[j])
                 t_sim_map = self.pair_wise_sim_map(feat_T[i], feat_T[j])
-
+                
                 p_s = F.log_softmax(s_sim_map / self.temperature, dim=1)
                 p_t = F.softmax(t_sim_map / self.temperature, dim=1)
 

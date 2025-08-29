@@ -96,11 +96,10 @@ def parse_args():
     parser.add_argument("--lambda-csd", type=float, default=0., help="lambda_csd")
 
     
-    # cuda setting
-    parser.add_argument('--gpu-id', type=str, default='0') 
+    # cuda setting 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--resume', type=str, default=None,
                         help='put the path to resuming file if needed')
@@ -395,7 +394,7 @@ class Trainer(object):
                     "|| Adv_G Loss: {:.4f} || Adv_D Loss: {:.4f}" \
                     "|| skd_loss: {:.4f} || cwd_fea_loss: {:.4f} || cwd_logit_loss: {:.4f} " \
                         "|| ifv_loss: {:.4f} || at_loss: {:.4f} || fitnet_loss: {:.4f} " \
-                        "|| psd_loss: {:.4f} || csd_loss: {:.4f} ||" \
+                        "|| psd_loss: {:.4f} || csd_loss: {:.4f} " \
                         "|| Cost Time: {} || Estimated Time: {}".format(
                         iteration, args.max_iterations, self.optimizer.param_groups[0]['lr'], 
                         task_loss_reduced.item(),
@@ -506,7 +505,6 @@ if __name__ == '__main__':
     args = parse_args()
 
     # reference maskrcnn-benchmark
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.num_gpus = num_gpus
     args.distributed = num_gpus > 1

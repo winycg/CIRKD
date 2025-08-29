@@ -1,0 +1,33 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+python -m torch.distributed.launch --nproc_per_node=8  \
+    --master_addr 127.5.0.4 --master_port 26501 \
+    train_cirkdv2_segformer.py \
+    --teacher-model segformer \
+    --student-model segformer \
+    --teacher-backbone MiT_B4 \
+    --student-backbone MiT_B0 \
+    --dataset citys \
+    --data /data/winycg/dataset/segmentation/cityscape/ \
+    --batch-size 8 \
+    --workers 16 \
+    --crop-size 1024 1024 \
+    --optimizer-type adamw \
+    --pixel-memory-size 2000 \
+    --region-contrast-size 1024 \
+    --pixel-contrast-size  4096 \
+    --kd-temperature 1 \
+    --contrast-kd-temperature 1. \
+    --lambda-kd 1. \
+    --lambda-fitnet 1. \
+    --lambda-minibatch-channel 1. \
+    --lambda-memory-channel 0.1 \
+    --lambda-channel-kd 100. \
+    --lambda-minibatch-pixel 1. \
+    --lambda-memory-pixel 0.1 \
+    --lambda-memory-region 0.1 \
+    --lr 0.0002 \
+    --max-iterations 160000 \
+    --save-dir /data/winycg/checkpoints/cirkd_checkpoints/cityscapes/ \
+    --save-dir-name segformer_MiT_B4_segformer_MiT_B0_cirkdv2 \
+    --teacher-pretrained /data/winycg/seg_model_zoo/segformer/segformer_MiT_B4_citys_best_model.pth \
+    --student-pretrained /data/winycg/seg_model_zoo/imagenet_backbone/mit/mit_b0.pth

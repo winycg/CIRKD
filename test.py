@@ -44,10 +44,10 @@ def parse_args():
     # training hyper params
     parser.add_argument('--aux', action='store_true', default=False,
                         help='Auxiliary loss')
-    # cuda setting
+    # cuda setting 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--pretrained', type=str, default='psp_resnet18_citys_best_model.pth',
                         help='pretrained seg model')
@@ -64,10 +64,8 @@ def parse_args():
 
     if args.backbone.startswith('resnet'):
         args.aux = True
-    elif args.backbone.startswith('mobile'):
-        args.aux = False
     else:
-        raise ValueError('no such network')
+        args.aux = False
     return args
 
 

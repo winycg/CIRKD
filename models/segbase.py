@@ -1,6 +1,6 @@
 """Base Model for Semantic Segmentation"""
 import torch.nn as nn
-from .base_models.resnet import *
+from .base_models.resnetv1b import *
 
 __all__ = ['SegBaseModel']
 
@@ -21,26 +21,27 @@ class SegBaseModel(nn.Module):
         self.nclass = nclass
         self.backbone = backbone
         if backbone == 'resnet18':
-            self.pretrained = resnet18_v1s(pretrained=pretrained_base, dilated=True, local_rank=local_rank, **kwargs)
+            self.pretrained = resnet18_v1s(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
         elif backbone == 'resnet50':
             self.pretrained = resnet50_v1s(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
         elif backbone == 'resnet101':
             self.pretrained = resnet101_v1s(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
-        
-        elif backbone == 'resnet18_original':
-            self.pretrained = resnet50_v1b(pretrained=pretrained_base, dilated=True, local_rank=local_rank, **kwargs)
-        elif backbone == 'resnet50_original':
+        elif backbone == 'resnet18_vanilla':
+            self.pretrained = resnet18_v1b(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
+        elif backbone == 'resnet34_vanilla':
+            self.pretrained = resnet34_v1b(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
+        elif backbone == 'resnet50_vanilla':
             self.pretrained = resnet50_v1b(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
-        elif backbone == 'resnet101_original':
+        elif backbone == 'resnet101_vanilla':
             self.pretrained = resnet101_v1b(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
-
+        elif backbone == 'resnet152_vanilla': 
+            self.pretrained = resnet152_v1b(pretrained=pretrained_base, local_rank=local_rank, dilated=True, **kwargs)
         else:
             raise RuntimeError('unknown backbone: {}'.format(backbone))
 
     def base_forward(self, x):
         """forwarding pre-trained network"""
-        
-        if self.backbone.split('_')[-1] == 'original':
+        if self.backbone.split('_')[-1] == 'vanilla':
             x = self.pretrained.conv1(x)
             x = self.pretrained.bn1(x)
             x = self.pretrained.relu(x)
@@ -58,7 +59,8 @@ class SegBaseModel(nn.Module):
             x = self.pretrained.bn3(x)
             x = self.pretrained.relu3(x)
             x = self.pretrained.maxpool(x)
-        
+            
+            
         c1 = self.pretrained.layer1(x)
         c2 = self.pretrained.layer2(c1)
         c3 = self.pretrained.layer3(c2)

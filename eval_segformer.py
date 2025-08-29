@@ -27,7 +27,7 @@ from dataset.ade20k import ADEDataValSet
 from dataset.voc import VOCDataValSet
 from dataset.coco_stuff_164k import CocoStuff164kValSet
 from utils.flops import cal_multi_adds, cal_param_size
-
+from fvcore.nn import FlopCountAnalysis
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Semantic Segmentation validation With Pytorch')
@@ -50,11 +50,10 @@ def parse_args():
     # training hyper params
     parser.add_argument('--aux', action='store_true', default=False,
                         help='Auxiliary loss')
-    # cuda setting
-    parser.add_argument('--gpu-id', type=str, default='0') 
+    # cuda setting 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--pretrained', type=str, default='psp_resnet18_citys_best_model.pth',
                         help='pretrained seg model')
@@ -106,19 +105,29 @@ class Evaluator(object):
         # create network
         BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
 
+        if 'former' in args.model:
+            self.model = get_segmentation_model(model=args.model,
+                                                backbone=args.backbone, 
+                                                img_size=args.crop_size,
+                                                pretrained=args.pretrained, 
+                                                batchnorm_layer=BatchNorm2d,
+                                                num_class=self.val_dataset.num_class).to(self.device)
+        else:
+            self.model = get_segmentation_model(model=args.model, 
+                                    backbone=args.backbone,
+                                    aux=args.aux, 
+                                    pretrained=args.pretrained, 
+                                    pretrained_base='None',
+                                    local_rank=args.local_rank,
+                                    norm_layer=BatchNorm2d,
+                                    num_class=self.val_dataset.num_class).to(self.device)
 
-        self.model = get_segmentation_model(model=args.model,
-                                            backbone=args.backbone, 
-                                            img_size=args.crop_size,
-                                            pretrained=args.pretrained, 
-                                            batchnorm_layer=BatchNorm2d,
-                                            num_class=self.val_dataset.num_class).to(self.device)
-    
         self.model.eval()
         with torch.no_grad():
+            self.model.eval()
+            flops = FlopCountAnalysis(self.model, torch.randn(1,3,1024, 2048).cuda())
             logger.info('Params: %.2fM FLOPs: %.2fG'
-                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
-
+                % (cal_param_size(self.model) / 1e6, flops.total()/1e9))
         if args.distributed:
             self.model = nn.parallel.DistributedDataParallel(self.model,
                 device_ids=[args.local_rank], output_device=args.local_rank)
@@ -133,23 +142,16 @@ class Evaluator(object):
 
     def predict_whole(self, net, image, tile_size):
         interp = nn.Upsample(size=tile_size, mode='bilinear', align_corners=True)
-        
-        if args.dataset == 'citys':
-            prediction = net(image[:,:,:,:1024].cuda())
-            if isinstance(prediction, tuple) or isinstance(prediction, list):
-                prediction1 = prediction[0]
-
-            prediction = net(image[:,:,:,1024:].cuda())
-            if isinstance(prediction, tuple) or isinstance(prediction, list):
-                prediction2 = prediction[0]
-            
-            prediction = torch.cat([prediction1, prediction2],dim=-1)
-        else:
-            prediction = net(image.cuda())
+        prediction = net(image[:,:,:,:1024].cuda())
         if isinstance(prediction, tuple) or isinstance(prediction, list):
-            prediction = prediction[0]
-        prediction = interp(prediction)
+            prediction1 = prediction[0]
+
+        prediction = net(image[:,:,:,1024:].cuda())
+        if isinstance(prediction, tuple) or isinstance(prediction, list):
+            prediction2 = prediction[0]
         
+        prediction = torch.cat([prediction1, prediction2],dim=-1)
+        prediction = interp(prediction)
         return prediction
 
     def eval(self):
@@ -219,7 +221,6 @@ class Evaluator(object):
 
 if __name__ == '__main__':
     args = parse_args()
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = num_gpus > 1
     if not args.no_cuda and torch.cuda.is_available():

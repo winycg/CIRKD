@@ -9,6 +9,8 @@ cur_path = os.path.abspath(os.path.dirname(__file__))
 root_path = os.path.split(cur_path)[0]
 sys.path.append(root_path)
 
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,20 +18,21 @@ import torch.utils.data as data
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 
-from utils.distributed import *
-from utils.logger import setup_logger
-from utils.score import SegmentationMetric
-
 from dataset.cityscapes import CSTrainValSet
 from dataset.ade20k import ADETrainSet, ADEDataValSet
 from dataset.camvid import CamvidTrainSet, CamvidValSet
 from dataset.voc import VOCDataTrainSet, VOCDataValSet
 from dataset.coco_stuff_164k import CocoStuff164kTrainSet, CocoStuff164kValSet
 
-from utils.flops import cal_multi_adds, cal_param_size
+
 from models.model_zoo import get_segmentation_model
 from losses import SegCrossEntropyLoss
 
+from utils.score import SegmentationMetric
+from utils.flops import cal_multi_adds, cal_param_size
+from utils.distributed import *
+from utils.logger import setup_logger
+from fvcore.nn import FlopCountAnalysis
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Semantic Segmentation Training With Pytorch')
@@ -52,7 +55,7 @@ def parse_args():
                         help='Auxiliary loss')
     parser.add_argument('--aux-weight', type=float, default=0.4,
                         help='auxiliary loss weight')
-    parser.add_argument('--batch-size', type=int, default=16, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=2, metavar='N',
                         help='input batch size for training (default: 8)')
     parser.add_argument('--start_epoch', type=int, default=0,
                         metavar='N', help='start epochs (default:0)')
@@ -64,22 +67,29 @@ def parse_args():
                         help='momentum (default: 0.9)')
     parser.add_argument('--weight-decay', type=float, default=1e-4, metavar='M',
                         help='w-decay (default: 5e-4)')
+    parser.add_argument('--optimizer-type', type=str, default='sgd',
+                        help='optimizer type')
     parser.add_argument('--ignore-label', type=int, default=-1, metavar='N',
                         help='input batch size for training (default: 8)')
     
     # cuda setting
+    parser.add_argument('--gpu-id', type=str, default='0') 
+    parser.add_argument('--dist-url', default='tcp://127.0.0.1:23456', type=str,
+                    help='url used to set up distributed training')
+    parser.add_argument('--world-size', default=1, type=int,
+                    help='number of nodes for distributed training')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--local-rank', type=int, default=0)
     # checkpoint and log
     parser.add_argument('--resume', type=str, default=None,
                         help='put the path to resuming file if needed')
     parser.add_argument('--save-dir', default='~/.torch/models',
                         help='Directory for saving checkpoint models')
+    parser.add_argument('--save-dir-name', default='seg_kd_exps',
+                        help='Directory for saving checkpoint models')
     parser.add_argument('--save-epoch', type=int, default=10,
                         help='save model every checkpoint-epoch')
-    parser.add_argument('--log-dir', default='../runs/logs/',
-                        help='Directory for saving checkpoint models')
     parser.add_argument('--log-iter', type=int, default=10,
                         help='print log every log-iter')
     parser.add_argument('--save-per-iters', type=int, default=800,
@@ -100,9 +110,8 @@ def parse_args():
     args = parser.parse_args()
 
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
+    args.save_dir = os.path.join(args.save_dir, args.save_dir_name)
     if num_gpus > 1 and args.local_rank == 0:
-        if not os.path.exists(args.log_dir):
-            os.makedirs(args.log_dir)
         if not os.path.exists(args.save_dir):
             os.makedirs(args.save_dir)
 
@@ -110,10 +119,8 @@ def parse_args():
 
     if args.backbone.startswith('resnet'):
         args.aux = True
-    elif args.backbone.startswith('mobile'):
-        args.aux = False
     else:
-        raise ValueError('no such network')
+        args.aux = False
 
     return args
     
@@ -137,20 +144,22 @@ class Trainer(object):
             train_dataset = VOCDataTrainSet(args.data, './dataset/list/voc/train_aug.txt', max_iters=args.max_iterations*args.batch_size, 
                                           crop_size=args.crop_size, scale=True, mirror=True)
             val_dataset = VOCDataValSet(args.data, './dataset/list/voc/val.txt')
-        elif args.dataset == 'camvid':
-            train_dataset = CamvidTrainSet(args.data, './dataset/list/CamVid/camvid_train_list.txt', max_iters=args.max_iterations*args.batch_size,
-                            ignore_label=args.ignore_label, crop_size=args.crop_size, scale=True, mirror=True)
-            val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_val_list.txt')
         elif args.dataset == 'ade20k':
             train_dataset = ADETrainSet(args.data, max_iters=args.max_iterations*args.batch_size, ignore_label=args.ignore_label,
                                         crop_size=args.crop_size, scale=True, mirror=True)
             val_dataset = ADEDataValSet(args.data)
+        elif args.dataset == 'camvid':
+            train_dataset = CamvidTrainSet(args.data, './dataset/list/CamVid/camvid_train_list.txt', max_iters=args.max_iterations*args.batch_size,
+                            ignore_label=args.ignore_label, crop_size=args.crop_size, scale=True, mirror=True)
+            val_dataset = CamvidValSet(args.data, './dataset/list/CamVid/camvid_val_list.txt')
         elif args.dataset == 'coco_stuff_164k':
             train_dataset = CocoStuff164kTrainSet(args.data, './dataset/list/coco_stuff_164k/coco_stuff_164k_train.txt', max_iters=args.max_iterations*args.batch_size, ignore_label=args.ignore_label,
                                         crop_size=args.crop_size, scale=True, mirror=True)
             val_dataset = CocoStuff164kValSet(args.data, './dataset/list/coco_stuff_164k/coco_stuff_164k_val.txt')
         else:
             raise ValueError('dataset unfind')
+
+
 
         # create network
         BatchNorm2d = nn.SyncBatchNorm if args.distributed else nn.BatchNorm2d
@@ -162,12 +171,17 @@ class Trainer(object):
                                             aux=args.aux, 
                                             norm_layer=BatchNorm2d,
                                             num_class=train_dataset.num_class).to(self.device)
-
-        with torch.no_grad():
-            logger.info('Params: %.2fM FLOPs: %.2fG'
-                % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
         
-
+        with torch.no_grad():
+            self.model.eval()
+            if 'vit' in args.backbone.lower():
+                flops = FlopCountAnalysis(self.model, torch.randn(1,3,1024, 2048).cuda())
+                logger.info('Params: %.2fM FLOPs: %.2fG'
+                    % (cal_param_size(self.model) / 1e6, flops.total()/1e9))
+            else:
+                logger.info('Params: %.2fM FLOPs: %.2fG'
+                    % (cal_param_size(self.model) / 1e6, cal_multi_adds(self.model, (1, 3, 1024, 2048))/1e9))
+        
         args.batch_size = args.batch_size // num_gpus
         train_sampler = make_data_sampler(train_dataset, shuffle=True, distributed=args.distributed)
         train_batch_sampler = make_batch_data_sampler(train_sampler, args.batch_size, args.max_iterations)
@@ -196,10 +210,20 @@ class Trainer(object):
 
         # optimizer, for model just includes pretrained, head and auxlayer
         params_list = self.model.parameters()
-        self.optimizer = torch.optim.SGD(params_list,
+
+        if args.optimizer_type == 'sgd':
+            self.optimizer = torch.optim.SGD(params_list,
                                          lr=args.lr,
                                          momentum=args.momentum,
                                          weight_decay=args.weight_decay)
+        elif args.optimizer_type == 'adamw':
+            self.optimizer = torch.optim.AdamW(params_list,
+                                               lr=args.lr,
+                                               weight_decay=args.weight_decay)
+        else:
+            raise ValueError('no such optimizer')
+
+        
 
         if args.distributed:
             self.model = nn.parallel.DistributedDataParallel(self.model, device_ids=[args.local_rank],
@@ -251,7 +275,6 @@ class Trainer(object):
                 task_loss = self.criterion(outputs[0], targets)
 
             losses = task_loss
-            
 
             lr = self.adjust_lr(base_lr=args.lr, iter=iteration-1, max_iter=args.max_iterations, power=0.9)
             self.optimizer.zero_grad()
@@ -309,7 +332,7 @@ class Trainer(object):
 
             self.metric.update(outputs[0], target)
             pixAcc, mIoU = self.metric.get()
-            logger.info("Sample: {:d}, Validation pixAcc: {:.3f}, mIoU: {:.3f}".format(i + 1, pixAcc, mIoU))
+            logger.info(str(args.local_rank) + "Sample: {:d}, Validation pixAcc: {:.3f}, mIoU: {:.3f}".format(i + 1, pixAcc, mIoU))
         
         if self.num_gpus > 1:
             sum_total_correct = torch.tensor(self.metric.total_correct).cuda().to(args.local_rank)
@@ -357,8 +380,9 @@ def save_checkpoint(model, args, is_best=False):
 
 if __name__ == '__main__':
     args = parse_args()
-
+    
     # reference maskrcnn-benchmark
+    
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.num_gpus = num_gpus
     args.distributed = num_gpus > 1
@@ -368,12 +392,24 @@ if __name__ == '__main__':
     else:
         args.distributed = False
         args.device = "cpu"
+
     if args.distributed:
-        torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
+        torch.cuda.set_device(args.local_rank) 
+        if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
+            rank = int(os.environ["RANK"])
+            world_size = int(os.environ['WORLD_SIZE'])
+            print(f"RANK and WORLD_SIZE in environ: {rank}/{world_size}")
+        else:
+            rank = -1
+            world_size = -1
+        torch.distributed.init_process_group(backend="nccl", init_method='env://',
+                world_size=world_size, rank=rank)
+        torch.distributed.barrier(device_ids=[args.local_rank])
         synchronize()
 
-    logger = setup_logger("semantic_segmentation", args.log_dir, get_rank(), filename='{}_{}_{}_log.txt'.format(
+        
+
+    logger = setup_logger("semantic_segmentation", args.save_dir, get_rank(), filename='{}_{}_{}_log.txt'.format(
         args.model, args.backbone, args.dataset))
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)

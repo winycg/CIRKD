@@ -6,6 +6,8 @@ from .ifvd import *
 from .kd import *
 from .cirkd_memory import *
 from .cirkd_mini_batch import *
+from .cirkd_channel import * 
 from .skd import *
 from .task import *
 from .dsd import *
+from .gcn import *

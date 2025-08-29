@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .base_models.mobilenetv2 import *
+from .base_models.mobilevit import get_mobilevit_x_small, get_mobilevit_small, get_mobilevit_xx_small
+from .base_models.mobilenetv3 import get_mobilenet_v3_small, get_mobilenet_v3_large, get_mobilenet_v2_ssseg
 
 
 __all__ = ['get_psp_mobile']
@@ -10,11 +12,29 @@ __all__ = ['get_psp_mobile']
 
 class PSPNet(nn.Module):
 
-    def __init__(self, nclass, backbone='resnet50', local_rank=None, pretrained_base=True, **kwargs):
+    def __init__(self, nclass, backbone='mobilenetv2', local_rank=None, pretrained_base=True, **kwargs):
         super(PSPNet, self).__init__()
-        self.pretrained = get_mobilenet_v2(pretrained=pretrained_base, local_rank=local_rank, norm_layer=kwargs['norm_layer'])
-        
-        self.head = _PSPHead(320, nclass, **kwargs)
+
+        if backbone == 'mobilenetv2':
+            self.pretrained = get_mobilenet_v2(pretrained=pretrained_base, local_rank=local_rank, norm_layer=kwargs['norm_layer'])
+            self.head = _PSPHead(320, nclass, **kwargs)
+        elif backbone == 'mobilevit_x_small':
+            self.pretrained = get_mobilevit_x_small(pretrained_base)
+            self.head = _PSPHead(384, nclass, **kwargs)
+        elif backbone == 'mobilevit_small':
+            self.pretrained = get_mobilevit_small(pretrained_base)
+            self.head = _PSPHead(640, nclass, **kwargs)
+        elif backbone == 'mobilevit_xx_small':
+            self.pretrained = get_mobilevit_xx_small(pretrained_base)
+            self.head = _PSPHead(320, nclass, **kwargs)
+        elif backbone == 'mobilenetv3_small':
+            self.pretrained = get_mobilenet_v3_small(pretrained_base)
+            self.head = _PSPHead(576, nclass, **kwargs)
+        elif backbone == 'mobilenetv3_large':
+            self.pretrained = get_mobilenet_v3_large(pretrained_base)
+            self.head = _PSPHead(960, nclass, **kwargs)
+        else:
+            raise KeyError('no such network')
 
     def forward(self, x):
         size = x.size()[2:]
@@ -58,13 +78,8 @@ class _PSPHead(nn.Module):
     def __init__(self, in_channels, nclass, norm_layer=nn.BatchNorm2d, norm_kwargs=None, **kwargs):
         super(_PSPHead, self).__init__()
         self.psp = _PyramidPooling(in_channels, norm_layer=norm_layer, norm_kwargs=norm_kwargs)
-
-        if in_channels == 512 or in_channels == 320:
-            out_channels = 128
-        elif in_channels == 2048:
-            out_channels = 512
-        else:
-            raise "channel number error"
+        out_channels = 128
+        
         self.block = nn.Sequential(
             nn.Conv2d(in_channels * 2, out_channels, 3, padding=1, bias=False),
             norm_layer(out_channels, **({} if norm_kwargs is None else norm_kwargs)),

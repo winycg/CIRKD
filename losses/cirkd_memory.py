@@ -31,7 +31,6 @@ class StudentSegContrast(nn.Module):
         self.pixel_contrast_size = pixel_contrast_size
         self.region_contrast_size = region_contrast_size
 
-
         self.register_buffer("teacher_segment_queue", torch.randn(self.num_classes, self.region_memory_size, self.dim))
         self.teacher_segment_queue = nn.functional.normalize(self.teacher_segment_queue, p=2, dim=2)
         self.register_buffer("segment_queue_ptr", torch.zeros(self.num_classes, dtype=torch.long))
@@ -149,7 +148,7 @@ class StudentSegContrast(nn.Module):
 
         self._dequeue_and_enqueue(ori_t_fea.detach().clone(), ori_labels.detach().clone())
 
-        if idxs.sum() == 0: # just a trick to skip all ignored anchor embeddings
+        if idxs.sum() == 0: # just a trick to skip all ignore anchor embeddings
             return 0. * (s_feats**2).mean(), 0. * (s_feats**2).mean()
             
         class_num, pixel_queue_size, feat_size = self.teacher_pixel_queue.shape

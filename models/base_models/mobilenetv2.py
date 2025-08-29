@@ -201,7 +201,7 @@ def get_mobilenet_v2(pretrained=False, local_rank=None, norm_layer=None):
     return model
 
 if __name__ == '__main__':
-    net = get_mobilenet_v2(pretrained='/home/users/chuanguang.yang/winycg/seg_job/semantic-segmentation-pytorch/pretrained_backbones/mobilenetv2-imagenet.pth', norm_layer=nn.BatchNorm2d).cuda()
+    net = get_mobilenet_v2(pretrained='./pretrained_backbones/mobilenetv2-imagenet.pth', norm_layer=nn.BatchNorm2d).cuda()
     x = torch.randn(2, 3, 224, 224).cuda()
     print(net(x).size())
     
