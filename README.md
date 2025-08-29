@@ -1,4 +1,4 @@
-#  Cross-Image Relational Knowledge Distillation for Semantic Segmentation
+#  CIRKDV2: Cross-Image Relational Knowledge Distillation with Contextual Modeling for Efficient Semantic Segmentation
 
 This repository contains the source code of CIRKDV2 and implementations of semantic segmentation distillation methods on popular datasets.
 
